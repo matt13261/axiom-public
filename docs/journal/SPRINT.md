@@ -1,25 +1,38 @@
-# Sprint actuel — Setup architecture (Semaine 2026-04-25)
+# Sprint actuel — Phase 2 : Abstraction V2 (Semaine 2026-04-26)
 
 ## Objectif sprint
-Boucler setup complet et démarrer Phase 2.
+Implémenter et valider l'abstraction cartes V2 (E[HS²] + Potentiel + K-means 3D).
 
 ## Tâches critiques
-- [ ] Système journal opérationnel + hook git
-- [ ] Architecture GitHub hybride (privé + public)
-- [ ] Compte Google Cloud créé
-- [ ] Décision blueprint HU
-- [ ] Spec P6 démarrée
+- [x] Système journal opérationnel + hook git ✅ 2026-04-25
+- [x] Architecture GitHub hybride (privé + public) ✅ 2026-04-25
+- [ ] Compte Google Cloud créé (guide prêt, action manuelle)
+- [x] Décision blueprint HU → HU hors scope ✅ 2026-04-25
+- [x] Spec P6 finalisée ✅ 2026-04-26
+
+## Phase 2 — Abstraction V2 (14 jours)
+- [ ] Étape A : stubs AbstractionCartesV2 + card_clustering
+- [ ] Étape B : 14 tests RED
+- [ ] Étape C : implémentation card_clustering.py
+- [ ] Étape D : implémentation AbstractionCartesV2
+- [ ] Étape E : calibration cloud → centroides_v2.npz
+- [ ] Étape F : bascule modules vers V2
+- [ ] Étape G : ré-entraînement blueprint MCCFR (cloud, 37€)
+- [ ] Étape H : validation 3×6×1000 mains + merge
 
 ## Important
-- [ ] Étude littérature : E[HS²], OCHS, k-means
-- [ ] Mini-prototype k-means 1000 mains
-- [ ] Profiling CPU bottlenecks
+- [ ] Créer compte Google Cloud (guide disponible : docs/journal/done/2026-04-25.md)
+- [ ] Mini-prototype k-means 1000 mains (Étape E locale)
+- [ ] Monitoring compute cloud (kill à 60€)
 
-## Définition done
-- [ ] Spec P6 reviewée
-- [ ] 1 expérience prototype lancée
-- [ ] Cloud opérationnel
-- [ ] 2 repos GitHub synchronisés
+## Définition done (Phase 2)
+- [x] Spec P6 reviewée et finalisée ✅
+- [ ] 14 tests RED écrits et confirmés en FAIL
+- [ ] Tests GREEN après implémentation
+- [ ] Centroïdes V2 calibrés et validés
+- [ ] Blueprint V2 entraîné sur cloud
+- [ ] Validation : critères section 5 de la spec satisfaits
+- [ ] 2 repos GitHub synchronisés ✅
 
 ## Journal décisions
 
@@ -32,8 +45,18 @@ Diagnostic :
 - Aucun processus Python actif.
 
 Conséquence : rien à arrêter, rien à archiver.
-Focus exclusif 3-max Spin 15€. Toute ref au "blueprint_hu" dans le code reste en place
-comme fallback architectural, mais aucun entraînement HU ne sera lancé en Phase 2.
+Focus exclusif 3-max Spin 15€.
 
-### 2026-04-25 — Architecture GitHub
-_(à compléter lors de la Phase C)_
+### 2026-04-25 — Architecture GitHub hybride
+**axiom-private** (privé, code complet) + **axiom-public** (public, docs+tests).
+Hook post-commit auto-sync axiom-public si modifs dans docs/ ou tests/.
+Script : `scripts/sync_public.sh`.
+
+### 2026-04-26 — Méthode abstraction P6
+**E[HS²] + Potentiel + K-means 3D street-specific, 50 buckets postflop.**
+
+- 3 features : (E[HS], E[HS²], Potentiel) calculées en 1 run MC
+- 3 sets de centroïdes : flop / turn / river (50 chacun)
+- Préflop : inchangé (8 buckets, lookup table V1)
+- Budget cloud : 51€ (calibration 14€ + training 37€)
+- Référence : docs/investigations/P6-abstraction/spec.md
