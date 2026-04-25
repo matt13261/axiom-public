@@ -614,7 +614,93 @@ Format ADR minimal :
 
 ---
 
-## 10. Résumé en 10 points clés
+## 10. Décision reportée : implémentation de `rang_normalise`
+
+### 10.1 Définitions alternatives
+
+**Option A — Sampling MC (retenue en Phase 2) :**
+```python
+def rang_normalise(cartes_hero, board_complet, nb_adversaires=2, n_samples=50):
+    """
+    HS ≈ fraction des tirages adverses que hero bat.
+    Tire n_samples mains aléatoires pour les adversaires, évalue chacune.
+    Identique conceptuellement à calculer_equite() de V1.
+    """
+    score_hero = evaluateur.evaluate(cartes_hero + board_complet)
+    wins = 0
+    for _ in range(n_samples):
+        main_adv = tirer_main_adverse(board_complet, cartes_hero)
+        score_adv = evaluateur.evaluate(main_adv + board_complet)
+        if score_hero < score_adv:  # treys : score plus bas = meilleure main
+            wins += 1
+    return wins / n_samples
+```
+
+**Option B — Rang exact (reporté en Phase 4) :**
+```python
+def rang_normalise_exact(cartes_hero, board_complet, nb_adversaires=2):
+    """
+    HS = fraction exacte des C(48,2) mains adverses possibles que hero bat.
+    Enumère toutes les combinaisons de mains adverses compatibles avec le board.
+    """
+    deck_restant = deck_minus(cartes_hero + board_complet)   # 45 cartes
+    toutes_mains = itertools.combinations(deck_restant, 2)   # C(45,2) = 990 mains
+    score_hero = evaluateur.evaluate(cartes_hero + board_complet)
+    wins = sum(1 for m in toutes_mains
+               if evaluateur.evaluate(list(m) + board_complet) > score_hero)
+    return wins / C(len(deck_restant), 2)
+```
+
+### 10.2 Analyse : Phase 2 vs Phase 4
+
+| Critère | Option A (MC sampling, Phase 2) | Option B (rang exact, Phase 4) |
+|---------|--------------------------------|--------------------------------|
+| Précision par évaluation | ±5-8% (n=50 MC) | Exacte (0%) |
+| Temps par appel | ~0.3ms (50 evals) | ~15ms (990 evals × 3-way) |
+| Déterminisme | ✅ avec seed fixe | ✅ toujours |
+| Cohérence avec V1 | ✅ identique | ⚠️ change les valeurs de features |
+| Impact sur les 50 buckets | Variance légère sur positionnement aux frontières | Buckets plus stables, frontières nettes |
+| Invalidation blueprint | Non (bruit cohérent) | Oui (recalibration + ré-entraînement) |
+
+### 10.3 Pourquoi reporter en Phase 4
+
+**Raison principale : coût disproportionné vs gain attendu.**
+
+Avec 50 buckets, une erreur de ±5% sur E[HS] déplace une main d'au plus 1-2 buckets
+sur 50. Le k-means absorbera ce bruit dans la calibration car toutes les situations
+de calibration auront le même bruit systématique (seed=42).
+
+Le problème de classification qu'on veut résoudre (flush draw ≠ paire faible) est
+indépendant de la précision du rang : les deux mains ont des distributions HS
+radicalement différentes, que HS soit calculé en MC50 ou en exact.
+
+**Raison secondaire : compatibilité avec V1.**
+`calculer_equite()` de V1 est déjà du MC sampling. Garder la même approche en V2
+préserve la cohérence conceptuelle et facilite la comparaison des résultats.
+
+**Ce que ça change si on l'inclut en Phase 2 :**
+1. Inference 50× plus lente (0.3ms → 15ms) → risque de dépasser la contrainte < 1ms
+2. Les centroïdes de calibration changent → le blueprint V1 devient incomparable
+   (les buckets ne correspondent plus du tout entre V1 et V2)
+3. Complexité d'implémentation + 80 lignes → risque de bug
+4. Aucun gain mesurable sur les critères de validation Phase 2
+
+**Ce qu'on gagne en Phase 4 (rang exact) :**
+- Buckets plus stables aux frontières (meilleure généralisation)
+- Meilleure qualité théorique pour Phase 4 (Deep CFR avec 200+ buckets)
+- Alignement avec la littérature Libratus/Claudico qui utilise le rang exact
+
+### 10.4 Décision entérinée
+
+```
+Phase 2 : rang_normalise = Option A (MC sampling, n_samples identique à n_sim)
+Phase 4 : migrer vers Option B (rang exact) si latence acceptable avec GPU
+          Créer ADR à ce moment : docs/investigations/.../decisions/adr-002-rang-normalise.md
+```
+
+---
+
+## 11. Résumé en 10 points clés
 
 1. **Méthode** : E[HS²] + Potentiel + K-means 3D, Méthode E enrichie
 2. **Features** : (E[HS], E[HS²], Potentiel) — calculées en un seul run MC
@@ -625,7 +711,7 @@ Format ADR minimal :
 7. **Tests** : 14 tests RED (7 clustering + 5 V2 + 2 régression)
 8. **Budget cloud** : 51€ (calibration 14€ + training MCCFR 37€) sur 520€ disponibles
 9. **Timeline** : 14 jours calendaires
-10. **Validation** : critères techniques bloquants + cibles performance vs 6 bots
+10. **rang_normalise** : MC sampling (identique V1) en Phase 2, rang exact reporté en Phase 4 (section 10)
 
 ---
 
