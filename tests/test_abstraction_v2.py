@@ -243,3 +243,44 @@ def test_v2_caches_repeated_calls():
     assert t_hits < t_miss * 5, (
         f"Cache inefficace : 99 hits={t_hits*1000:.1f}ms, "
         f"1 miss={t_miss*1000:.1f}ms (ratio={t_hits/t_miss:.1f}x)")
+
+
+# =============================================================================
+# TEST D.5 — Régression : OFT + V2 réelle sans interaction parasite
+# =============================================================================
+
+def test_oft_works_with_v2_real_buckets():
+    """V2 avec centroïdes réels et OFT fonctionnent indépendamment."""
+    import numpy as np
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+    from ai.opponent_tracker import OpponentTracker
+    from ai.exploit_mixer   import ExploitMixer
+
+    # V2 avec centroïdes réalistes (random scaled)
+    rng   = np.random.RandomState(7)
+    cents = {
+        'flop':  rng.rand(50, 3).astype(np.float32),
+        'turn':  rng.rand(50, 3).astype(np.float32),
+        'river': rng.rand(50, 3).astype(np.float32),
+    }
+    v2 = AbstractionCartesV2(centroides=cents)
+
+    # V2 produit des buckets normaux sur quelques mains
+    cartes = [Card.new('As'), Card.new('Ks')]
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+    b = v2.bucket_postflop(cartes, board, street='flop')
+    assert 0 <= b < 50, f"bucket_postflop hors [0,49] : {b}"
+
+    # OFT fonctionne normalement en parallèle
+    tracker = OpponentTracker()
+    for _ in range(30):
+        tracker.observer_action(seat_index=1, action=2,
+                                contexte={'phase': 'preflop'})
+
+    mixer  = ExploitMixer(tracker)
+    bp     = np.array([0.1, 0.0, 0.8, 0.1, 0., 0., 0., 0., 0.], dtype=np.float32)
+    result = mixer.ajuster(bp, seat_index=1, game_type='3max')
+
+    assert abs(result.sum() - 1.0) < 1e-5, (
+        f"Distribution OFT invalide avec V2 réelle : sum={result.sum()}")
