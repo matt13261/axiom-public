@@ -225,3 +225,81 @@ def test_predict_bucket_returns_nearest_centroid():
 
     assert bucket == 1, (
         f"Point proche du centroïde 1 → attendu bucket=1, obtenu {bucket}")
+
+
+# =============================================================================
+# TEST B.16 — Intégration pipeline : features → centroids → buckets variés
+# =============================================================================
+
+def test_pipeline_produces_diverse_buckets():
+    """Pipeline complet sur 20 spots aléatoires doit produire ≥5 buckets distincts."""
+    import numpy as np
+    from abstraction.card_clustering import compute_features, fit_centroids, predict_bucket
+    from treys import Card
+
+    spots = [
+        ([Card.new('As'), Card.new('Ks')], [Card.new('Qh'), Card.new('8c'), Card.new('3d')]),
+        ([Card.new('2h'), Card.new('7d')], [Card.new('Qh'), Card.new('8c'), Card.new('3d')]),
+        ([Card.new('Jh'), Card.new('Th')], [Card.new('Qh'), Card.new('8c'), Card.new('3d')]),
+        ([Card.new('Ac'), Card.new('Ad')], [Card.new('Qh'), Card.new('8c'), Card.new('3d')]),
+        ([Card.new('6s'), Card.new('5s')], [Card.new('Qh'), Card.new('8c'), Card.new('3d')]),
+        ([Card.new('9c'), Card.new('8c')], [Card.new('Th'), Card.new('7d'), Card.new('2s')]),
+        ([Card.new('Kd'), Card.new('Qd')], [Card.new('Th'), Card.new('7d'), Card.new('2s')]),
+        ([Card.new('3h'), Card.new('2h')], [Card.new('Th'), Card.new('7d'), Card.new('2s')]),
+        ([Card.new('Js'), Card.new('Ts')], [Card.new('9h'), Card.new('5c'), Card.new('2d')]),
+        ([Card.new('As'), Card.new('2s')], [Card.new('9h'), Card.new('5c'), Card.new('2d')]),
+    ]
+
+    features_list = [
+        compute_features(h, b, street='flop', n_sim=20, seed=42)
+        for h, b in spots
+    ]
+    features_arr = np.array(features_list, dtype=np.float32)
+
+    centroids = fit_centroids(features_arr, n_clusters=10, seed=42)
+    buckets   = [predict_bucket(f, centroids) for f in features_arr]
+
+    n_distinct = len(set(buckets))
+    assert n_distinct >= 5, (
+        f"Pipeline doit produire ≥5 buckets distincts sur 10 spots variés, "
+        f"obtenu {n_distinct} : {buckets}")
+
+
+# =============================================================================
+# TEST B.17 — compute_features : draws ont potentiel moyen > mains faites
+# =============================================================================
+
+def test_draws_have_higher_potentiel_than_made_hands():
+    """Drawing hands doivent avoir potentiel moyen supérieur aux mains faites."""
+    from abstraction.card_clustering import compute_features
+    from treys import Card
+
+    board = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    # Mains avec potentiel élevé : draws / connecteurs / suited
+    draws = [
+        [Card.new('Js'), Card.new('Ts')],   # OESD + backdoor FD
+        [Card.new('9s'), Card.new('8s')],   # paire + FD
+        [Card.new('Jh'), Card.new('Th')],   # OESD
+        [Card.new('7s'), Card.new('6s')],   # OESD (7-6-5-4)
+    ]
+
+    # Mains avec potentiel faible : mains fortes ou sans amélioration
+    made = [
+        [Card.new('Ac'), Card.new('Ad')],   # overpair (AA)
+        [Card.new('Kc'), Card.new('Kd')],   # overpair (KK)
+        [Card.new('Qd'), Card.new('Qs')],   # set de dames
+        [Card.new('Qc'), Card.new('8h')],   # two pair Q8
+    ]
+
+    pot_draws = [compute_features(h, board, street='flop', n_sim=50, seed=42)[2]
+                 for h in draws]
+    pot_made  = [compute_features(h, board, street='flop', n_sim=50, seed=42)[2]
+                 for h in made]
+
+    mean_draws = sum(pot_draws) / len(pot_draws)
+    mean_made  = sum(pot_made)  / len(pot_made)
+
+    assert mean_draws > mean_made + 0.05, (
+        f"Draws doivent avoir potentiel moyen > mains faites + 0.05 : "
+        f"mean_draws={mean_draws:.3f}, mean_made={mean_made:.3f}")
