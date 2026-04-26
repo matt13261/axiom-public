@@ -39,3 +39,23 @@ def test_v2_bucket_postflop_deterministic():
     b2 = v2.bucket_postflop(cartes, board)
 
     assert b1 == b2, f"bucket_postflop non déterministe : {b1} != {b2}"
+
+
+# =============================================================================
+# TEST B.9 — AbstractionCartesV2 : distingue draw et paire faible
+# =============================================================================
+
+def test_v2_distinguishes_draw_from_pair():
+    """J♠T♠ (OESD) et 6♥6♦ (paire faible) sur même board → buckets différents."""
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    v2    = AbstractionCartesV2()
+    board = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    b_draw = v2.bucket_postflop([Card.new('Js'), Card.new('Ts')], board)
+    b_pair = v2.bucket_postflop([Card.new('6h'), Card.new('6d')], board)
+
+    assert b_draw != b_pair, (
+        f"Draw (J♠T♠) et paire faible (6♥6♦) doivent avoir des buckets distincts, "
+        f"obtenu b_draw={b_draw}, b_pair={b_pair}")
