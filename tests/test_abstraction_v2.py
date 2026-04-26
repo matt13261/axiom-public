@@ -315,3 +315,68 @@ def test_v2_raises_when_centroides_none():
 
     with pytest.raises(RuntimeError, match="centroïdes non chargés"):
         v2.bucket_postflop(cartes, board, street='flop')
+
+
+# =============================================================================
+# TEST E.3 — V2 avec vrais centroïdes : qualité discriminative
+# =============================================================================
+
+def test_v2_with_real_centroides_hand_types():
+    """Vrais centroïdes : buckets valides + air distinct de premium."""
+    import os
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    path = 'data/abstraction/centroides_v2.npz'
+    if not os.path.exists(path):
+        pytest.skip("centroides_v2.npz non disponible")
+
+    v2    = AbstractionCartesV2(centroides_path=path)
+    board = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    spots = {
+        'oesd_draw':   [Card.new('Js'), Card.new('Ts')],
+        'flush_draw':  [Card.new('Ah'), Card.new('Kh')],
+        'paire_faible':[Card.new('6h'), Card.new('6d')],
+        'top_pair':    [Card.new('Qs'), Card.new('Td')],
+        'overpair':    [Card.new('As'), Card.new('Ad')],
+        'air':         [Card.new('2c'), Card.new('7d')],
+    }
+
+    buckets = {name: v2.bucket_postflop(cartes, board, street='flop')
+               for name, cartes in spots.items()}
+
+    for name, b in buckets.items():
+        assert 0 <= b < 50, f"{name} : bucket hors [0,49] : {b}"
+
+    for name, cartes in spots.items():
+        assert v2.bucket_postflop(cartes, board, street='flop') == buckets[name], (
+            f"{name} non déterministe")
+
+    assert buckets['air'] != buckets['overpair'], (
+        f"air={buckets['air']} ne doit pas == overpair={buckets['overpair']}")
+
+
+# =============================================================================
+# TEST B.9v2 — Draw vs pair avec vrais centroïdes calibrés
+# =============================================================================
+
+def test_v2_distinguishes_draw_from_pair_real_centroides():
+    """Version stricte de B.9 — exige vrais centroïdes, skip sinon."""
+    import os
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    path = 'data/abstraction/centroides_v2.npz'
+    if not os.path.exists(path):
+        pytest.skip("centroides_v2.npz non disponible")
+
+    v2    = AbstractionCartesV2(centroides_path=path)
+    board = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    b_draw = v2.bucket_postflop([Card.new('Js'), Card.new('Ts')], board, street='flop')
+    b_pair = v2.bucket_postflop([Card.new('6h'), Card.new('6d')], board, street='flop')
+
+    assert b_draw != b_pair, (
+        f"Draw (J♠T♠) et paire (6♥6♦) doivent avoir des buckets distincts "
+        f"avec vrais centroïdes : draw={b_draw}, pair={b_pair}")
