@@ -1,20 +1,17 @@
 # TODO — Session 2026-04-26
 
-## Immédiat (prochaine session — Étape C)
-- [ ] **Étape C** : implémenter `card_clustering.py` pour rendre les tests réels GREEN
-      Fonctions à implémenter (dans l'ordre TDD atomique) :
-      1. `rang_normalise(cartes, board_complet, nb_adversaires)` — MC sampling
-      2. `completer_board_aleatoire(cartes, board, rng, cibles=5)`
-      3. `completer_board_jusqu_river(cartes, board, rng)`
-      4. `compute_features` — vrai calcul E[HS], E[HS²], Potentiel
-      5. `fit_centroids` — vrai k-means sklearn (n_init=20, random_state)
-      6. `predict_bucket` — argmin distance L2 euclidienne
-      Objectif final : tests B.2/B.3/B.4 passent avec vraie implémentation,
-      B.1/B.6 restent GREEN (déterminisme toujours satisfait)
+## Immédiat (prochaine session — Étape D)
+- [x] **Étape C** : implémenter `card_clustering.py` — TERMINÉ (4 commits, 160 tests GREEN)
+      - C.1 : `compute_features` MC réelle (B.13 ✓)
+      - C.2 : `fit_centroids` sklearn KMeans (B.14 ✓)
+      - C.3 : `predict_bucket` argmin L2 (B.15 ✓)
+      - C.4 : tests intégration pipeline (B.16/B.17 ✓)
 
 - [ ] **Étape D** : implémenter `AbstractionCartesV2` complète
       - Charger centroides, LRU cache, bucket() unifié, bucket_et_equite()
       - Test B.8/B.9 doivent passer avec vraie logique (pas rank-stub)
+      - bucket_postflop : compute_features + predict_bucket (+ centroides depuis fichier)
+      - bucket_preflop  : logique Chen/bisect existante (réutiliser V1)
 
 ## Suite (dans l'ordre)
 - [ ] Étape E : script `recalibrer_3max_v2.py` + calibration locale + cloud
@@ -34,4 +31,9 @@
       - 6 GREEN immédiats (B.1/B.2/B.4/B.6/B.8*/B.12)
       - 5 nécessitaient stub + TDD Guard cycles (B.3/B.5/B.7/B.9/B.10/B.11)
       - 1 correction test (B.12 : adversaire= → seat_index=)
+- [x] Étape C.1-C.4 : vraie implémentation card_clustering.py (160 tests GREEN)
+      - compute_features MC réelle : E[HS], E[HS²], Potentiel via treys Evaluator
+      - fit_centroids : sklearn KMeans(n_init=10, random_state=seed)
+      - predict_bucket : argmin(linalg.norm(centroids - vec, axis=1))
+      - 5 nouveaux tests B.13-B.17 (dont B.16/B.17 GREEN immédiatement)
 - [x] Zéro bypass TDD Guard cette session
