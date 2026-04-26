@@ -83,3 +83,22 @@ def test_potentiel_positive_flop_drawing_hand():
 
     assert potentiel > 0.05, (
         f"Drawing hand au flop doit avoir potentiel > 0.05, obtenu {potentiel}")
+
+
+# =============================================================================
+# TEST B.4 — compute_features : E[HS²] ∈ [0,1] et ≥ E[HS]² (Jensen)
+# =============================================================================
+
+def test_e_hs_squared_within_bounds():
+    """E[HS²] doit être dans [0,1] et satisfaire Jensen : E[HS²] >= E[HS]²."""
+    from abstraction.card_clustering import compute_features
+
+    cartes = [Card.new('9c'), Card.new('8c')]
+    board  = [Card.new('Th'), Card.new('7d'), Card.new('3s')]
+
+    e_hs, e_hs2, _ = compute_features(cartes, board, street='flop',
+                                       n_sim=10, seed=42)
+
+    assert 0.0 <= e_hs2 <= 1.0, f"E[HS²] hors [0,1] : {e_hs2}"
+    assert e_hs2 >= e_hs ** 2 - 1e-6, (
+        f"Jensen violé : E[HS²]={e_hs2:.4f} < E[HS]²={e_hs**2:.4f}")
