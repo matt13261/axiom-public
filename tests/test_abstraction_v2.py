@@ -59,3 +59,26 @@ def test_v2_distinguishes_draw_from_pair():
     assert b_draw != b_pair, (
         f"Draw (J♠T♠) et paire faible (6♥6♦) doivent avoir des buckets distincts, "
         f"obtenu b_draw={b_draw}, b_pair={b_pair}")
+
+
+# =============================================================================
+# TEST B.10 — AbstractionCartesV2 : chargement centroïdes depuis disque
+# =============================================================================
+
+def test_v2_load_centroids_from_disk(tmp_path):
+    """V2 charge correctement les centroïdes depuis un fichier .npz."""
+    import numpy as np
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    flop  = np.random.RandomState(0).rand(50, 3).astype(np.float32)
+    turn  = np.random.RandomState(1).rand(50, 3).astype(np.float32)
+    river = np.random.RandomState(2).rand(50, 3).astype(np.float32)
+    path  = str(tmp_path / "centroides_v2.npz")
+    np.savez(path, flop=flop, turn=turn, river=river)
+
+    v2 = AbstractionCartesV2(centroides_path=path)
+
+    assert v2.centroides is not None, "centroides doit être chargé depuis le fichier"
+    assert v2.centroides['flop'].shape  == (50, 3)
+    assert v2.centroides['turn'].shape  == (50, 3)
+    assert v2.centroides['river'].shape == (50, 3)
