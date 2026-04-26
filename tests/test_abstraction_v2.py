@@ -148,3 +148,36 @@ def test_v2_init_with_centroides_dict():
     assert v2.centroides['flop'].shape  == (50, 3)
     assert v2.centroides['turn'].shape  == (50, 3)
     assert v2.centroides['river'].shape == (50, 3)
+
+
+# =============================================================================
+# TEST D.2 — AbstractionCartesV2 : bucket_postflop utilise les centroïdes réels
+# =============================================================================
+
+def test_v2_bucket_postflop_uses_centroids():
+    """bucket_postflop retourne l'index du centroïde le plus proche."""
+    import numpy as np
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    # 50 centroïdes flop : un seul proche des features attendues pour AKs sur Q83
+    # On place le centroïde 7 à [0.70, 0.60, 0.05] — proche de AKs equity flop
+    # Tous les autres à [0.0, 0.0, 0.0] (très éloignés)
+    flop_cents = np.zeros((50, 3), dtype=np.float32)
+    flop_cents[7] = [0.70, 0.60, 0.05]
+
+    centroides = {
+        'flop':  flop_cents,
+        'turn':  np.zeros((50, 3), dtype=np.float32),
+        'river': np.zeros((50, 3), dtype=np.float32),
+    }
+
+    v2     = AbstractionCartesV2(centroides=centroides)
+    cartes = [Card.new('As'), Card.new('Ks')]
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    bucket = v2.bucket_postflop(cartes, board, street='flop')
+
+    assert bucket == 7, (
+        f"bucket_postflop doit retourner 7 (centroïde proche de AKs equity), "
+        f"obtenu {bucket}")
