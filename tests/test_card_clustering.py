@@ -177,3 +177,28 @@ def test_compute_features_e_hs_in_realistic_range():
     assert 0.55 < e_hs < 0.75, (
         f"E[HS] pour A♠K♠ sur board sec doit être dans (0.55, 0.75), "
         f"obtenu {e_hs:.4f}")
+
+
+# =============================================================================
+# TEST B.14 — fit_centroids : centroïdes diversifiés (pas tous nuls)
+# =============================================================================
+
+def test_fit_centroids_produces_diverse_centroids():
+    """fit_centroids doit produire des centroïdes distincts (pas tous identiques)."""
+    import numpy as np
+    from abstraction.card_clustering import fit_centroids
+
+    rng      = np.random.RandomState(42)
+    features = rng.rand(200, 3).astype(np.float32)
+
+    centroids = fit_centroids(features, n_clusters=10, seed=42)
+
+    # Vérifier qu'au moins 5 centroïdes distincts existent (norm > 0.01)
+    norms = [np.linalg.norm(centroids[i] - centroids[j])
+             for i in range(len(centroids))
+             for j in range(i + 1, len(centroids))]
+
+    n_distinct_pairs = sum(1 for n in norms if n > 0.01)
+    assert n_distinct_pairs >= 5, (
+        f"Centroïdes pas assez diversifiés : seulement {n_distinct_pairs} "
+        f"paires à distance > 0.01 (attendu ≥ 5)")
