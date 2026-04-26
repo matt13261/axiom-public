@@ -303,3 +303,28 @@ def test_draws_have_higher_potentiel_than_made_hands():
     assert mean_draws > mean_made + 0.05, (
         f"Draws doivent avoir potentiel moyen > mains faites + 0.05 : "
         f"mean_draws={mean_draws:.3f}, mean_made={mean_made:.3f}")
+
+
+# =============================================================================
+# TEST B.18 — compute_features : potentiel négatif pour overpair sur board sec
+# =============================================================================
+
+def test_potentiel_negative_for_overpair_dry_board():
+    """A♠A♦ sur Q♥7♣2♦ rainbow au flop : potentiel doit être < 0.0.
+
+    Une overpair sur board sec PERD typiquement de la valeur entre flop et
+    river (les adversaires peuvent toucher deux pairs, trips, brelan, etc.).
+    Le potentiel doit donc être négatif — indispensable pour distinguer les
+    overpairs des draws au niveau du clustering.
+    """
+    from abstraction.card_clustering import compute_features
+
+    cartes = [Card.new('As'), Card.new('Ad')]
+    board  = [Card.new('Qh'), Card.new('7c'), Card.new('2d')]  # rainbow sec
+
+    _, _, potentiel = compute_features(cartes, board, street='flop',
+                                       n_sim=200, seed=42)
+
+    assert potentiel < 0.0, (
+        f"Overpair (A♠A♦) sur board sec doit avoir potentiel < 0, "
+        f"obtenu {potentiel:.4f}")
