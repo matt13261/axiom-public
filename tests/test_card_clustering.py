@@ -64,3 +64,22 @@ def test_potentiel_zero_river():
 
     assert abs(potentiel) < 0.01, (
         f"Potentiel à la river doit être ~0, obtenu {potentiel}")
+
+
+# =============================================================================
+# TEST B.3 — compute_features : potentiel > 0 au flop avec drawing hand
+# =============================================================================
+
+def test_potentiel_positive_flop_drawing_hand():
+    """Au flop avec un flush draw + straight draw, le potentiel doit être > 0.05."""
+    from abstraction.card_clustering import compute_features
+
+    # J♠T♠ sur Q♥8♣3♦ : OESD (J-T-9-8 ou T-9-8-7) + backdoor FD
+    cartes = [Card.new('Js'), Card.new('Ts')]
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    _, _, potentiel = compute_features(cartes, board, street='flop',
+                                       n_sim=10, seed=42)
+
+    assert potentiel > 0.05, (
+        f"Drawing hand au flop doit avoir potentiel > 0.05, obtenu {potentiel}")
