@@ -120,3 +120,22 @@ def test_fit_centroids_returns_correct_shape():
 
     assert centroids.shape == (50, 3), (
         f"Shape attendu (50, 3), obtenu {centroids.shape}")
+
+
+# =============================================================================
+# TEST B.6 — fit_centroids : déterminisme (même seed → mêmes centroïdes)
+# =============================================================================
+
+def test_fit_centroids_deterministic():
+    """Deux appels avec les mêmes features et seed=42 donnent les mêmes centroïdes."""
+    import numpy as np
+    from abstraction.card_clustering import fit_centroids
+
+    rng      = np.random.RandomState(0)
+    features = rng.rand(200, 3).astype(np.float32)
+
+    c1 = fit_centroids(features, n_clusters=50, seed=42)
+    c2 = fit_centroids(features, n_clusters=50, seed=42)
+
+    np.testing.assert_array_equal(c1, c2,
+        err_msg="fit_centroids non déterministe avec même seed")
