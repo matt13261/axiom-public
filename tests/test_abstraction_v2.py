@@ -181,3 +181,26 @@ def test_v2_bucket_postflop_uses_centroids():
     assert bucket == 7, (
         f"bucket_postflop doit retourner 7 (centroïde proche de AKs equity), "
         f"obtenu {bucket}")
+
+
+# =============================================================================
+# TEST D.3 — AbstractionCartesV2 : bucket_preflop retourne int dans [0, 7]
+# =============================================================================
+
+def test_v2_bucket_preflop_returns_int_in_range():
+    """bucket_preflop délègue à V1 et retourne un entier dans [0, 7]."""
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    v2    = AbstractionCartesV2()
+    mains = [
+        [Card.new('As'), Card.new('Ks')],
+        [Card.new('2h'), Card.new('7d')],
+        [Card.new('Jc'), Card.new('Jd')],
+        [Card.new('8s'), Card.new('5h')],
+    ]
+
+    for cartes in mains:
+        b = v2.bucket_preflop(cartes)
+        assert isinstance(b, int), f"bucket_preflop doit retourner int, obtenu {type(b)}"
+        assert 0 <= b < 8, f"bucket_preflop hors [0,7] : {b} pour {cartes}"
