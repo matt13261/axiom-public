@@ -204,3 +204,42 @@ def test_v2_bucket_preflop_returns_int_in_range():
         b = v2.bucket_preflop(cartes)
         assert isinstance(b, int), f"bucket_preflop doit retourner int, obtenu {type(b)}"
         assert 0 <= b < 8, f"bucket_preflop hors [0,7] : {b} pour {cartes}"
+
+
+# =============================================================================
+# TEST D.4 — AbstractionCartesV2 : LRU cache accélère les appels répétés
+# =============================================================================
+
+def test_v2_caches_repeated_calls():
+    """100 appels identiques doivent être bien plus rapides qu'1 appel × 100."""
+    import time
+    import numpy as np
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    rng   = np.random.RandomState(0)
+    cents = {
+        'flop':  rng.rand(50, 3).astype(np.float32),
+        'turn':  rng.rand(50, 3).astype(np.float32),
+        'river': rng.rand(50, 3).astype(np.float32),
+    }
+    v2     = AbstractionCartesV2(centroides=cents)
+    cartes = [Card.new('As'), Card.new('Ks')]
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    # Premier appel (cache miss)
+    t0    = time.perf_counter()
+    b_ref = v2.bucket_postflop(cartes, board, street='flop')
+    t_miss = time.perf_counter() - t0
+
+    # 99 appels répétés (cache hits)
+    t0 = time.perf_counter()
+    for _ in range(99):
+        b = v2.bucket_postflop(cartes, board, street='flop')
+    t_hits = time.perf_counter() - t0
+
+    assert b == b_ref, "Le cache doit retourner le même bucket"
+    # Les 99 hits doivent prendre moins que 5x le coût d'un seul miss
+    assert t_hits < t_miss * 5, (
+        f"Cache inefficace : 99 hits={t_hits*1000:.1f}ms, "
+        f"1 miss={t_miss*1000:.1f}ms (ratio={t_hits/t_miss:.1f}x)")
