@@ -102,3 +102,21 @@ def test_e_hs_squared_within_bounds():
     assert 0.0 <= e_hs2 <= 1.0, f"E[HS²] hors [0,1] : {e_hs2}"
     assert e_hs2 >= e_hs ** 2 - 1e-6, (
         f"Jensen violé : E[HS²]={e_hs2:.4f} < E[HS]²={e_hs**2:.4f}")
+
+
+# =============================================================================
+# TEST B.5 — fit_centroids : shape de retour (n_clusters, 3)
+# =============================================================================
+
+def test_fit_centroids_returns_correct_shape():
+    """fit_centroids doit retourner un array de forme (n_clusters, 3)."""
+    import numpy as np
+    from abstraction.card_clustering import fit_centroids
+
+    rng      = np.random.RandomState(42)
+    features = rng.rand(100, 3).astype(np.float32)
+
+    centroids = fit_centroids(features, n_clusters=50, seed=42)
+
+    assert centroids.shape == (50, 3), (
+        f"Shape attendu (50, 3), obtenu {centroids.shape}")
