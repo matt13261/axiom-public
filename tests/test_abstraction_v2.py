@@ -82,3 +82,17 @@ def test_v2_load_centroids_from_disk(tmp_path):
     assert v2.centroides['flop'].shape  == (50, 3)
     assert v2.centroides['turn'].shape  == (50, 3)
     assert v2.centroides['river'].shape == (50, 3)
+
+
+# =============================================================================
+# TEST B.11 — AbstractionCartesV2 : API compatible avec V1
+# =============================================================================
+
+def test_v2_api_compatible_v1():
+    """V2 doit exposer les mêmes méthodes publiques que V1 (bucket_postflop, bucket_preflop)."""
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    required_methods = ['bucket_postflop', 'bucket_preflop']
+    for method in required_methods:
+        assert hasattr(AbstractionCartesV2, method), (
+            f"AbstractionCartesV2 manque la méthode publique : {method!r}")
