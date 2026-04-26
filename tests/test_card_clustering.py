@@ -139,3 +139,22 @@ def test_fit_centroids_deterministic():
 
     np.testing.assert_array_equal(c1, c2,
         err_msg="fit_centroids non déterministe avec même seed")
+
+
+# =============================================================================
+# TEST B.7 — predict_bucket : résultat dans [0, n_clusters-1]
+# =============================================================================
+
+def test_predict_bucket_in_range():
+    """predict_bucket doit retourner un entier dans [0, 49]."""
+    import numpy as np
+    from abstraction.card_clustering import predict_bucket
+
+    rng       = np.random.RandomState(42)
+    centroids = rng.rand(50, 3).astype(np.float32)
+
+    for _ in range(20):
+        features_vec = rng.rand(3).astype(np.float32)
+        b = predict_bucket(features_vec, centroids)
+        assert isinstance(b, (int, np.integer)), f"Attendu int, obtenu {type(b)}"
+        assert 0 <= b < 50, f"Bucket hors plage : {b}"
