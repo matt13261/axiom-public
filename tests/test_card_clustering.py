@@ -28,3 +28,20 @@ def test_compute_features_returns_tuple_of_three_floats():
         f"E[HS] et E[HS²] doivent être dans [0, 1] : {result[:2]}")
     assert -1.0 <= result[2] <= 1.0, (
         f"Potentiel doit être dans [-1, 1] : {result[2]}")
+
+
+# =============================================================================
+# TEST B.1 — compute_features : déterminisme (même seed → même résultat)
+# =============================================================================
+
+def test_compute_features_deterministic():
+    """Deux appels identiques avec seed=42 doivent retourner les mêmes features."""
+    from abstraction.card_clustering import compute_features
+
+    cartes = [Card.new('9c'), Card.new('8c')]
+    board  = [Card.new('Th'), Card.new('7d'), Card.new('3s')]
+
+    r1 = compute_features(cartes, board, street='flop', n_sim=10, seed=42)
+    r2 = compute_features(cartes, board, street='flop', n_sim=10, seed=42)
+
+    assert r1 == r2, f"Résultats non déterministes : {r1} != {r2}"
