@@ -96,3 +96,31 @@ def test_v2_api_compatible_v1():
     for method in required_methods:
         assert hasattr(AbstractionCartesV2, method), (
             f"AbstractionCartesV2 manque la méthode publique : {method!r}")
+
+
+# =============================================================================
+# TEST B.12 — Régression : OFT non affecté par initialisation de V2
+# =============================================================================
+
+def test_oft_unaffected_by_v2_initialization():
+    """Créer une instance V2 ne perturbe pas le fonctionnement d'OpponentTracker."""
+    import numpy as np
+    from abstraction.card_abstraction import AbstractionCartesV2
+    from ai.opponent_tracker import OpponentTracker
+    from ai.exploit_mixer   import ExploitMixer
+
+    # Initialiser V2 (ne doit pas avoir d'effets de bord sur OFT)
+    _v2 = AbstractionCartesV2()
+
+    # OFT doit continuer à fonctionner normalement
+    tracker = OpponentTracker()
+    for _ in range(30):
+        tracker.observer_action(seat_index=1, action=2,
+                                contexte={'phase': 'preflop'})
+
+    mixer  = ExploitMixer(tracker)
+    bp     = np.array([0.1, 0.0, 0.8, 0.1, 0., 0., 0., 0., 0.], dtype=np.float32)
+    result = mixer.ajuster(bp, seat_index=1, game_type='3max')
+
+    assert abs(result.sum() - 1.0) < 1e-5, (
+        f"Distribution OFT invalide après init V2 : sum={result.sum()}")
