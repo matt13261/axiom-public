@@ -158,3 +158,22 @@ def test_predict_bucket_in_range():
         b = predict_bucket(features_vec, centroids)
         assert isinstance(b, (int, np.integer)), f"Attendu int, obtenu {type(b)}"
         assert 0 <= b < 50, f"Bucket hors plage : {b}"
+
+
+# =============================================================================
+# TEST B.13 — compute_features : E[HS] dans une plage réaliste (main premium)
+# =============================================================================
+
+def test_compute_features_e_hs_in_realistic_range():
+    """A♠K♠ sur board sec 2♥7♣Q♦ au flop : E[HS] doit être dans (0.55, 0.75)."""
+    from abstraction.card_clustering import compute_features
+
+    cartes = [Card.new('As'), Card.new('Ks')]
+    board  = [Card.new('2h'), Card.new('7c'), Card.new('Qd')]
+
+    e_hs, _, _ = compute_features(cartes, board, street='flop',
+                                   n_sim=10, seed=42)
+
+    assert 0.55 < e_hs < 0.75, (
+        f"E[HS] pour A♠K♠ sur board sec doit être dans (0.55, 0.75), "
+        f"obtenu {e_hs:.4f}")
