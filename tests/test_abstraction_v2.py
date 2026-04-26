@@ -124,3 +124,27 @@ def test_oft_unaffected_by_v2_initialization():
 
     assert abs(result.sum() - 1.0) < 1e-5, (
         f"Distribution OFT invalide après init V2 : sum={result.sum()}")
+
+
+# =============================================================================
+# TEST D.1 — AbstractionCartesV2 : init avec dict centroides direct
+# =============================================================================
+
+def test_v2_init_with_centroides_dict():
+    """V2 accepte un dict centroides passé directement (sans fichier .npz)."""
+    import numpy as np
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    centroides = {
+        'flop':  np.zeros((50, 3), dtype=np.float32),
+        'turn':  np.zeros((50, 3), dtype=np.float32),
+        'river': np.zeros((50, 3), dtype=np.float32),
+    }
+
+    v2 = AbstractionCartesV2(centroides=centroides)
+
+    assert v2.centroides is not None, "centroides doit être stocké"
+    assert set(v2.centroides.keys()) == {'flop', 'turn', 'river'}
+    assert v2.centroides['flop'].shape  == (50, 3)
+    assert v2.centroides['turn'].shape  == (50, 3)
+    assert v2.centroides['river'].shape == (50, 3)
