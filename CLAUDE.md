@@ -104,6 +104,20 @@ Pour toute modification de code substantielle :
 
 Types de commit : `feat`, `fix`, `refactor`, `test`, `train`, `docs`
 
+## AbstractionCartesV2 — règle d'usage (Phase 2)
+
+- **Toujours instancier avec centroïdes** :
+  `V2(centroides=...)` ou `V2(centroides_path='data/abstraction/centroides_v2.npz')`
+- **Sans centroïdes** : `bucket_postflop()` lève `RuntimeError` immédiatement —
+  comportement intentionnel, pas un bug.
+- **Mock pour tests** : utiliser `mock_centroides()` depuis `tests/conftest.py`
+  ```python
+  from tests.conftest import mock_centroides
+  v2 = AbstractionCartesV2(centroides=mock_centroides())
+  ```
+- **Discrimination draw vs pair** : garantie uniquement avec centroïdes calibrés
+  (post Étape E). Les tests avec mocks vérifient uniquement la plage [0, 49].
+
 ## Bugs connus (non bloquants)
 
 - **Décalage stacks HU agent↔training** : l'agent lit les stacks post-blinde
