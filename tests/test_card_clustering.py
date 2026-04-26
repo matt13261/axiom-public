@@ -45,3 +45,22 @@ def test_compute_features_deterministic():
     r2 = compute_features(cartes, board, street='flop', n_sim=10, seed=42)
 
     assert r1 == r2, f"Résultats non déterministes : {r1} != {r2}"
+
+
+# =============================================================================
+# TEST B.2 — compute_features : potentiel ≈ 0 à la river
+# =============================================================================
+
+def test_potentiel_zero_river():
+    """À la river (board complet 5 cartes), le potentiel doit être quasi-nul."""
+    from abstraction.card_clustering import compute_features
+
+    cartes = [Card.new('Ah'), Card.new('Kh')]
+    board  = [Card.new('Qd'), Card.new('Jc'), Card.new('Ts'),
+              Card.new('2h'), Card.new('7d')]  # river complète
+
+    _, _, potentiel = compute_features(cartes, board, street='river',
+                                       n_sim=10, seed=42)
+
+    assert abs(potentiel) < 0.01, (
+        f"Potentiel à la river doit être ~0, obtenu {potentiel}")
