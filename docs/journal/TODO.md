@@ -1,28 +1,37 @@
 # TODO — Session 2026-04-26
 
-## En cours (Phase 2 — Abstraction V2)
+## Immédiat (prochaine session — Étape C)
+- [ ] **Étape C** : implémenter `card_clustering.py` pour rendre les tests réels GREEN
+      Fonctions à implémenter (dans l'ordre TDD atomique) :
+      1. `rang_normalise(cartes, board_complet, nb_adversaires)` — MC sampling
+      2. `completer_board_aleatoire(cartes, board, rng, cibles=5)`
+      3. `completer_board_jusqu_river(cartes, board, rng)`
+      4. `compute_features` — vrai calcul E[HS], E[HS²], Potentiel
+      5. `fit_centroids` — vrai k-means sklearn (n_init=20, random_state)
+      6. `predict_bucket` — argmin distance L2 euclidienne
+      Objectif final : tests B.2/B.3/B.4 passent avec vraie implémentation,
+      B.1/B.6 restent GREEN (déterminisme toujours satisfait)
 
-### Immédiat (prochaine session)
-- [ ] **Étape A** : créer `AbstractionCartesV2` stub dans `card_abstraction.py`
-      + créer `abstraction/card_clustering.py` avec stubs
-      (nécessite probablement TDD Guard bypass #5 — multi-fichiers bootstrap)
-- [ ] **Étape B** : écrire les 14 tests RED
-      - `tests/test_card_clustering.py` (7 tests)
-      - ajouter tests 8-14 dans `tests/test_abstraction.py`
-      Confirmer : nouveaux tests RED + 141 existants GREEN
+- [ ] **Étape D** : implémenter `AbstractionCartesV2` complète
+      - Charger centroides, LRU cache, bucket() unifié, bucket_et_equite()
+      - Test B.8/B.9 doivent passer avec vraie logique (pas rank-stub)
 
-### Suite (dans l'ordre)
-- [ ] Étape C : implémenter `card_clustering.py` (compute_features, fit_centroids, predict)
-- [ ] Étape D : implémenter `AbstractionCartesV2` complet + LRU cache
-- [ ] Étape E : script `recalibrer_3max_v2.py` + run local validation + run cloud
+## Suite (dans l'ordre)
+- [ ] Étape E : script `recalibrer_3max_v2.py` + calibration locale + cloud
+- [ ] Étape F : bascule modules (agent, mccfr, deep_cfr, solver)
+- [ ] Étape G : training blueprint cloud (37€)
+- [ ] Étape H : validation + merge
 
-## Backlog (hors Phase 2)
+## Backlog
 - [ ] Créer compte Google Cloud (guide dans done/2026-04-25.md)
-- [ ] Lancer Continuation Strategies k=4 (infrastructure prête, voir TODO.txt)
+- [ ] Continuation Strategies k=4 (infrastructure prête, voir TODO.txt)
 
 ## Terminé cette session
-- [x] Étape 1 : analyse code existant (rapport synthèse abstraction V1)
-- [x] Étape 2 : brainstorm méthodes bucketing → sauvegardé brainstorm.md
-- [x] Étape 3 : spec P6 complète → sauvegardée spec.md
-- [x] GitHub hybride : axiom-private + axiom-public + sync hook ✅
-- [x] Décision Blueprint HU : HU hors scope, documenté SPRINT.md
+- [x] Section 10 spec.md : décision rang_normalise documentée (MC vs exact)
+- [x] Étape A.1 : stub compute_features + 1 test (142 total)
+- [x] Étape A.2 : stub AbstractionCartesV2 + 1 test (143 total)
+- [x] Étape B.1-B.12 : 12 tests atomiques TDD (155 total)
+      - 6 GREEN immédiats (B.1/B.2/B.4/B.6/B.8*/B.12)
+      - 5 nécessitaient stub + TDD Guard cycles (B.3/B.5/B.7/B.9/B.10/B.11)
+      - 1 correction test (B.12 : adversaire= → seat_index=)
+- [x] Zéro bypass TDD Guard cette session
