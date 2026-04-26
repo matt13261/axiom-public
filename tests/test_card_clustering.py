@@ -202,3 +202,26 @@ def test_fit_centroids_produces_diverse_centroids():
     assert n_distinct_pairs >= 5, (
         f"Centroïdes pas assez diversifiés : seulement {n_distinct_pairs} "
         f"paires à distance > 0.01 (attendu ≥ 5)")
+
+
+# =============================================================================
+# TEST B.15 — predict_bucket : point proche centroïde 1 → retourne 1
+# =============================================================================
+
+def test_predict_bucket_returns_nearest_centroid():
+    """Un point très proche du centroïde 1 doit retourner le bucket 1."""
+    import numpy as np
+    from abstraction.card_clustering import predict_bucket
+
+    # Centroïdes bien séparés
+    centroids = np.zeros((50, 3), dtype=np.float32)
+    for k in range(50):
+        centroids[k] = [k / 50.0, k / 50.0, k / 50.0]
+
+    # Point quasi-identique au centroïde 1
+    point = np.array([1 / 50.0 + 0.001, 1 / 50.0, 1 / 50.0], dtype=np.float32)
+
+    bucket = predict_bucket(point, centroids)
+
+    assert bucket == 1, (
+        f"Point proche du centroïde 1 → attendu bucket=1, obtenu {bucket}")
