@@ -484,3 +484,70 @@ def test_v2_bucket_et_equite_raises_when_centroides_none(monkeypatch):
 
     with pytest.raises(RuntimeError, match="centroïdes non chargés"):
         v2.bucket_et_equite(cartes, board)
+
+
+# =============================================================================
+# TEST OptionC.1 — AbstractionCartesV2 : log INFO lors de l'auto-chargement
+# =============================================================================
+
+def test_v2_logs_when_auto_loading_centroides(caplog):
+    """Auto-chargement DOIT laisser une trace dans les logs."""
+    import logging
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    with caplog.at_level(logging.INFO):
+        v2 = AbstractionCartesV2()  # auto-load depuis centroides_v2.npz
+
+    messages = [r.message for r in caplog.records]
+    assert any('centroïdes' in m.lower() and 'chargé' in m.lower()
+               for m in messages), \
+        f"Aucun log d'auto-chargement trouvé. Logs : {messages}"
+
+
+# =============================================================================
+# TEST OptionC.2 — AbstractionCartesV2 : centroides_path custom
+# =============================================================================
+
+def test_v2_accepts_custom_centroides_path():
+    """V2 doit accepter un path personnalisé via centroides_path=."""
+    import os
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    custom_path = 'data/abstraction/centroides_v2.npz'
+    if not os.path.exists(custom_path):
+        pytest.skip("centroides_v2.npz non disponible")
+
+    v2 = AbstractionCartesV2(centroides_path=custom_path)
+
+    cartes = [Card.new('As'), Card.new('Ks')]
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+    bucket = v2.bucket_postflop(cartes, board, street='flop')
+    assert 0 <= bucket < 50, f"bucket hors [0,49] : {bucket}"
+
+
+# =============================================================================
+# TEST OptionC.3 — path explicite invalide → FileNotFoundError immédiat
+# =============================================================================
+
+def test_v2_raises_clear_error_if_path_provided_but_invalid():
+    """Path explicite invalide → FileNotFoundError à l'instanciation."""
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    with pytest.raises(FileNotFoundError, match="centroïdes introuvables"):
+        AbstractionCartesV2(centroides_path='/path/qui/nexiste/pas/centroides.npz')
+
+
+# =============================================================================
+# TEST OptionC.4 — DEFAULT_CENTROIDES_PATH attribut de classe
+# =============================================================================
+
+def test_v2_default_path_is_documented():
+    """Le path par défaut doit être accessible comme attribut de classe."""
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    assert hasattr(AbstractionCartesV2, 'DEFAULT_CENTROIDES_PATH'), \
+        "AbstractionCartesV2 doit avoir DEFAULT_CENTROIDES_PATH"
+    assert AbstractionCartesV2.DEFAULT_CENTROIDES_PATH == \
+           'data/abstraction/centroides_v2.npz', \
+        f"Path par défaut inattendu : {AbstractionCartesV2.DEFAULT_CENTROIDES_PATH}"

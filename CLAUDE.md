@@ -106,10 +106,14 @@ Types de commit : `feat`, `fix`, `refactor`, `test`, `train`, `docs`
 
 ## AbstractionCartesV2 — règle d'usage (Phase 2)
 
-- **Toujours instancier avec centroïdes** :
-  `V2(centroides=...)` ou `V2(centroides_path='data/abstraction/centroides_v2.npz')`
-- **Sans centroïdes** : `bucket_postflop()` lève `RuntimeError` immédiatement —
-  comportement intentionnel, pas un bug.
+- **Auto-chargement** : `V2()` charge automatiquement `DEFAULT_CENTROIDES_PATH`
+  (`data/abstraction/centroides_v2.npz`) si le fichier existe. Log INFO traçable.
+- **Path personnalisé** : `V2(centroides_path='autre/path.npz')`
+  → `FileNotFoundError` immédiat si le fichier n'existe pas.
+- **Dict direct** : `V2(centroides=mon_dict)` — utile pour tests / calibration.
+- **Sans centroïdes** : si le fichier par défaut est absent et aucun arg fourni,
+  `bucket_postflop()` lève `RuntimeError` — comportement intentionnel, pas un bug.
+  Un log `WARNING` est émis à l'instanciation.
 - **Mock pour tests** : utiliser `mock_centroides()` depuis `tests/conftest.py`
   ```python
   from tests.conftest import mock_centroides
