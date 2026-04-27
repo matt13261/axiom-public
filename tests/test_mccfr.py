@@ -515,7 +515,9 @@ def test_23_buckets_precomputes():
         assert len(buckets[j]) == 4, f"joueur {j} doit avoir 4 buckets (une par phase)"
         for phase in range(4):
             b = buckets[j][phase]
-            assert 0 <= b <= 7, f"bucket hors plage : joueur={j}, phase={phase}, bucket={b}"
+            max_b = 7 if phase == 0 else 49  # preflop V1 (8 buckets), postflop V2 (50)
+            assert 0 <= b <= max_b, (
+                f"bucket hors plage : joueur={j}, phase={phase}, bucket={b}, max={max_b}")
     print("OK")
 
 
@@ -897,10 +899,11 @@ def test_39_format_cles_infoset():
         pos = int(parties[1].split('=')[1])
         assert pos in (0, 1, 2), f"pos hors plage : {pos}"
 
-        # bucket=Y avec Y ∈ {0..7}
+        # bucket=Y avec Y ∈ {0..7} preflop, {0..49} postflop
         assert parties[2].startswith('bucket='), f"format bucket invalide"
         bucket = int(parties[2].split('=')[1])
-        assert 0 <= bucket <= 7, f"bucket hors plage : {bucket}"
+        max_b = 7 if parties[0] == 'PREFLOP' else 49
+        assert 0 <= bucket <= max_b, f"bucket hors plage : {bucket} (phase={parties[0]}, max={max_b})"
 
         # pot=Z et stacks=(a,b,c)
         assert parties[3].startswith('pot='),    f"format pot invalide"

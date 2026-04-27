@@ -301,15 +301,19 @@ def test_oft_works_with_v2_real_buckets():
 # TEST Fix.1 — AbstractionCartesV2 : RuntimeError si centroides non chargés
 # =============================================================================
 
-def test_v2_raises_when_centroides_none():
+def test_v2_raises_when_centroides_none(monkeypatch):
     """
     AbstractionCartesV2 sans centroïdes doit lever RuntimeError sur
-    bucket_postflop, jamais retourner un bucket silencieux.
+    bucket_postflop. On simule l'absence du fichier via monkeypatch.
     """
+    import os
     from treys import Card
     from abstraction.card_abstraction import AbstractionCartesV2
 
-    v2     = AbstractionCartesV2()   # centroides=None
+    # Simuler absence de centroides_v2.npz (auto-load désactivé)
+    monkeypatch.setattr(os.path, 'exists', lambda p: False)
+
+    v2     = AbstractionCartesV2()   # centroides=None, fichier absent
     cartes = [Card.new('As'), Card.new('Ks')]
     board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
 
@@ -466,12 +470,15 @@ def test_v2_bucket_et_equite_coherent_with_bucket_postflop():
 # TEST F.0b.2 — bucket_et_equite lève RuntimeError si centroides=None
 # =============================================================================
 
-def test_v2_bucket_et_equite_raises_when_centroides_none():
+def test_v2_bucket_et_equite_raises_when_centroides_none(monkeypatch):
     """bucket_et_equite sans centroïdes doit lever RuntimeError (postflop)."""
+    import os
     from treys import Card
     from abstraction.card_abstraction import AbstractionCartesV2
 
-    v2     = AbstractionCartesV2()  # centroides=None
+    monkeypatch.setattr(os.path, 'exists', lambda p: False)
+
+    v2     = AbstractionCartesV2()  # centroides=None, fichier absent
     cartes = [Card.new('As'), Card.new('Ad')]
     board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
 
