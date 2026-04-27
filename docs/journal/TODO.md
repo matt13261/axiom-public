@@ -34,7 +34,11 @@
       - F.6 : tests mis à jour (plage bucket V2), merge main, tag p6-bascule-complete
 
 ## Suite (dans l'ordre)
-- [ ] Étape G : training blueprint cloud (37€) — post Étape F
+- [ ] **Étape G** : training blueprint cloud (37€) — post Étape F ✅
+      - G.1 : préparer script d'entraînement V2 (namespace clés infoset changé)
+      - G.2 : valider run local rapide (N=100 iter) avant cloud
+      - G.3 : lancer training cloud (budget 37€ max)
+      - G.4 : sauvegarder blueprint_v2.pkl + valider
 - [ ] Étape H : validation + merge
 
 ## Backlog
