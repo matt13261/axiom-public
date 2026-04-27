@@ -24,14 +24,14 @@
       - Tests E.3 + B.9v2 GREEN avec vrais centroïdes
       - Cloud NON utilisé — budget 14€ épargné
 
-- [ ] **Étape F** : bascule modules vers AbstractionCartesV2
-      - F.1 : identifier tous les appels à AbstractionCartes dans le code
-      - F.2 : bascule abstraction/info_set.py
-      - F.3 : bascule ai/agent.py
-      - F.4 : bascule training/mccfr.py
-      - F.5 : bascule training/deep_cfr.py
-      - F.6 : bascule solver/ (depth_limited.py, subgame_solver.py)
-      - F.7 : pytest complet + sync axiom-public
+- [x] **Étape F** : bascule modules vers AbstractionCartesV2 — TERMINÉ (181 tests GREEN)
+      - F.0 : bucket() + bucket_et_equite() sur V2 + auto-chargement npz
+      - F.1 : solver/subgame_solver.py migré
+      - F.2 : solver/depth_limited.py migré
+      - F.3 : ai/deep_cfr.py migré
+      - F.4 : ai/agent.py migré (2 instances 3max+hu)
+      - F.5 : ai/mccfr.py migré
+      - F.6 : tests mis à jour (plage bucket V2), merge main, tag p6-bascule-complete
 
 ## Suite (dans l'ordre)
 - [ ] Étape G : training blueprint cloud (37€) — post Étape F
