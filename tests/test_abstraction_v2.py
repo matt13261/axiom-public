@@ -380,3 +380,100 @@ def test_v2_distinguishes_draw_from_pair_real_centroides():
     assert b_draw != b_pair, (
         f"Draw (J♠T♠) et paire (6♥6♦) doivent avoir des buckets distincts "
         f"avec vrais centroïdes : draw={b_draw}, pair={b_pair}")
+
+
+# =============================================================================
+# TEST F.0a — AbstractionCartesV2 : méthode bucket() dispatch preflop/postflop
+# =============================================================================
+
+def test_v2_bucket_dispatches_preflop_and_postflop():
+    """bucket(cartes, board) doit dispatcher vers bucket_preflop ou bucket_postflop."""
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+    from tests.conftest import mock_centroides
+
+    v2 = AbstractionCartesV2(centroides=mock_centroides())
+
+    # Preflop : board vide → bucket dans [0, 7]
+    cartes = [Card.new('As'), Card.new('Ks')]
+    b_pre = v2.bucket(cartes, board=[])
+    assert isinstance(b_pre, int) and 0 <= b_pre < 8, (
+        f"bucket preflop hors [0,7] : {b_pre}")
+
+    # Postflop : board non vide → bucket dans [0, 49]
+    board = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+    b_post = v2.bucket(cartes, board=board)
+    assert isinstance(b_post, int) and 0 <= b_post < 50, (
+        f"bucket postflop hors [0,49] : {b_post}")
+
+
+# =============================================================================
+# TEST F.0b — AbstractionCartesV2 : méthode bucket_et_equite()
+# =============================================================================
+
+def test_v2_bucket_et_equite_returns_bucket_and_hs():
+    """bucket_et_equite(cartes, board) retourne (int, float) avec équité dans [0,1]."""
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+    from tests.conftest import mock_centroides
+
+    v2 = AbstractionCartesV2(centroides=mock_centroides())
+    cartes = [Card.new('As'), Card.new('Ks')]
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    result = v2.bucket_et_equite(cartes, board)
+
+    assert isinstance(result, tuple) and len(result) == 2, (
+        f"bucket_et_equite doit retourner (bucket, equite), obtenu {result}")
+    bucket, equite = result
+    assert isinstance(bucket, int) and 0 <= bucket < 50, (
+        f"bucket hors [0,49] : {bucket}")
+    assert isinstance(equite, float) and 0.0 <= equite <= 1.0, (
+        f"equite hors [0,1] : {equite}")
+    # bucket_et_equite doit être cohérent avec bucket_postflop
+    assert bucket == v2.bucket_postflop(cartes, board, street='flop'), (
+        f"bucket_et_equite ({bucket}) incohérent avec bucket_postflop")
+
+
+def test_v2_bucket_et_equite_coherent_with_bucket_postflop():
+    """bucket_et_equite retourne le même bucket que bucket_postflop (centroïde fixé)."""
+    import numpy as np
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    # Centroïde 7 placé près de l'équité attendue pour AKs → bucket_postflop retourne 7
+    flop_cents = np.zeros((50, 3), dtype=np.float32)
+    flop_cents[7] = [0.70, 0.60, 0.05]
+    centroides = {
+        'flop':  flop_cents,
+        'turn':  np.zeros((50, 3), dtype=np.float32),
+        'river': np.zeros((50, 3), dtype=np.float32),
+    }
+    v2     = AbstractionCartesV2(centroides=centroides)
+    cartes = [Card.new('As'), Card.new('Ad')]  # AA overpair → E[HS] ~0.72 en 3-max
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    bucket_post = v2.bucket_postflop(cartes, board, street='flop')
+    bucket_eq, equite = v2.bucket_et_equite(cartes, board)
+
+    assert bucket_post == 7, f"bucket_postflop attendu 7, obtenu {bucket_post}"
+    assert bucket_eq == 7, (
+        f"bucket_et_equite doit retourner bucket=7, obtenu {bucket_eq}")
+    assert 0.5 < equite < 1.0, f"equite AA sur Qh8c3d attendu >0.5, obtenu {equite}"
+
+
+# =============================================================================
+# TEST F.0b.2 — bucket_et_equite lève RuntimeError si centroides=None
+# =============================================================================
+
+def test_v2_bucket_et_equite_raises_when_centroides_none():
+    """bucket_et_equite sans centroïdes doit lever RuntimeError (postflop)."""
+    from treys import Card
+    from abstraction.card_abstraction import AbstractionCartesV2
+
+    v2     = AbstractionCartesV2()  # centroides=None
+    cartes = [Card.new('As'), Card.new('Ad')]
+    board  = [Card.new('Qh'), Card.new('8c'), Card.new('3d')]
+
+    with pytest.raises(RuntimeError, match="centroïdes non chargés"):
+        v2.bucket_et_equite(cartes, board)
