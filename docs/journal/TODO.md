@@ -34,11 +34,15 @@
       - F.6 : tests mis à jour (plage bucket V2), merge main, tag p6-bascule-complete
 
 ## Suite (dans l'ordre)
-- [ ] **Étape G** : training blueprint cloud (37€) — post Étape F ✅
-      - G.1 : préparer script d'entraînement V2 (namespace clés infoset changé)
-      - G.2 : valider run local rapide (N=100 iter) avant cloud
-      - G.3 : lancer training cloud (budget 37€ max)
-      - G.4 : sauvegarder blueprint_v2.pkl + valider
+- [x] **Étape G.1** : script train_cloud.py + package cloud — TERMINÉ (185 tests GREEN)
+      - TDD : test_train_cloud_importable, produces_output, exits_if_no_centroides
+- [x] **Étape G.2** : VM axiom-training créée (n2-standard-8, europe-west4-a)
+      - env vérifié : MCCFRHoldEm OK, centroides (50,3) OK
+- [x] **Étape G.3** : pilot run lancé — EN COURS
+      - PID 3304 sur axiom-training, 5M itérations
+      - Log : ~/axiom/logs/pilot_20260427_184324.log
+      - Scripts locaux : scripts/cloud_monitor.sh + kill_switch_pilot.sh
+- [ ] **Étape G.4** : récupérer blueprint_v2_pilot.pkl + valider + arrêter VM
 - [ ] Étape H : validation + merge
 
 ## Backlog
