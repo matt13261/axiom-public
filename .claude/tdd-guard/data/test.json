@@ -1,0 +1,19 @@
+{
+  "testModules": [
+    {
+      "moduleId": "tests/test_train_cloud.py",
+      "tests": [
+        {
+          "name": "test_train_cloud_produces_output",
+          "fullName": "tests/test_train_cloud.py::test_train_cloud_produces_output",
+          "state": "failed",
+          "errors": [
+            {
+              "message": "tmp_path = WindowsPath('C:/Users/matth/AppData/Local/Temp/pytest-of-matth/pytest-65/test_train_cloud_produces_outp0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002808D75B820>\n\n    def test_train_cloud_produces_output(tmp_path, monkeypatch):\n        \"\"\"main() avec --iterations 10 doit cr\u00e9er le fichier de sortie.\"\"\"\n        import pytest\n        import train_cloud\n    \n        output = str(tmp_path / 'blueprint_test.pkl')\n        monkeypatch.setattr(sys, 'argv', [\n            'train_cloud.py',\n            '--iterations', '10',\n            '--output', output,\n            '--checkpoint-every', '0',\n        ])\n    \n>       train_cloud.main()\n\ntests\\test_train_cloud.py:38: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\n    def main():\n        parser = argparse.ArgumentParser(description=__doc__,\n                                         formatter_class=argparse.RawDescriptionHelpFormatter)\n        parser.add_argument('--iterations',       type=int, required=True)\n        parser.add_argument('--output',           type=str, required=True)\n        parser.add_argument('--checkpoint-every', type=int, default=500_000)\n        parser.add_argument('--stacks',           type=int, default=1500)\n        parser.add_argument('--workers',          type=int, default=1)\n        parser.add_argument('--batch-size',       type=int, default=1_000_000)\n        args = parser.parse_args()\n    \n        output_path = Path(args.output)\n        output_path.parent.mkdir(parents=True, exist_ok=True)\n    \n        from ai.mccfr import MCCFRHoldEm\n        from ai.strategy import sauvegarder_blueprint\n    \n        print(f\"=== Cloud Training MCCFR \u2014 AbstractionCartesV2 ===\")\n        print(f\"Iterations : {args.iterations:,} | Output : {args.output}\")\n        print(f\"Start : {time.strftime('%Y-%m-%d %H:%M:%S')}\")\n    \n        trainer = MCCFRHoldEm()\n        if trainer._abs_cartes.centroides is None:\n            print(\"ERREUR : centro\u00efdes V2 absents \u2014 copier centroides_v2.npz dans data/abstraction/\")\n>           sys.exit(1)\nE           SystemExit: 1\n\nscripts\\cloud_train_p6\\train_cloud.py:93: SystemExit"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
