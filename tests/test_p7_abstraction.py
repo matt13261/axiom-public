@@ -254,3 +254,18 @@ def test_cardinalite_stacks_random_play_inferieure_400():
         seg_stacks = cle.split('|')[4]
         stacks_set.add(seg_stacks)
     assert len(stacks_set) < 400, f"Cardinalité stacks = {len(stacks_set)} (>= 400)"
+
+
+# =============================================================================
+# RED.14 — Convergence Kuhn préservée (GUARDRAIL non-régression)
+# =============================================================================
+
+def test_kuhn_convergence_preservee():
+    """Vanilla CFR sur Kuhn Poker doit toujours converger vers -1/18 (Nash).
+       GUARDRAIL : déjà GREEN, vérifie que P7.4 ne casse pas la convergence."""
+    from ai.mccfr import CFRKUHN, _KP_VALEUR_NASH as VALEUR_NASH
+    cfr = CFRKUHN()
+    valeur = cfr.entrainer(nb_iterations=10_000, verbose=False)
+    assert abs(valeur - VALEUR_NASH) < 0.005, (
+        f"Convergence Kuhn cassée : valeur={valeur:.6f} vs Nash={VALEUR_NASH:.6f}"
+    )
