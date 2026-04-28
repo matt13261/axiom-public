@@ -129,3 +129,28 @@ def test_cle_infoset_utilise_paliers_spin_rush():
         assert v in PALIERS_STACK_SPIN_RUSH, (
             f"Stack {v} pas dans PALIERS_STACK_SPIN_RUSH={PALIERS_STACK_SPIN_RUSH}"
         )
+
+
+# =============================================================================
+# RED.9 — Clé infoset : segment hist contient rS/rM/rL pas r1/r2/r3/r4
+# =============================================================================
+
+def test_cle_infoset_hist_abstrait_format_S_M_L():
+    """Le segment hist= doit utiliser le format abstrait Variante B."""
+    from engine.player import Joueur, TypeJoueur
+    from engine.game_state import EtatJeu
+    from abstraction.info_set import construire_cle_infoset
+    j1 = Joueur("J1", TypeJoueur.AXIOM, 1500, 0)
+    j2 = Joueur("J2", TypeJoueur.AXIOM, 1500, 1)
+    j3 = Joueur("J3", TypeJoueur.AXIOM, 1500, 2)
+    etat = EtatJeu([j1, j2, j3], petite_blinde=10, grande_blinde=20)
+    etat.nouvelle_main()
+    # Injecter directement un hist raw 'xr1r3' dans la phase courante (PREFLOP=0)
+    etat.historique_phases[0] = 'xr1r3'
+    cle = construire_cle_infoset(etat, j1)
+    seg_hist = cle.split('|')[5]                # "hist=..."
+    valeur = seg_hist[len('hist='):]
+    # Format abstrait attendu : 'xrSrL' (r1→S, r3→L Variante B)
+    assert valeur == 'xrSrL', f"Hist non abstrait : {valeur!r}"
+    # Aucun chiffre ne doit subsister dans le segment hist
+    assert not any(c.isdigit() for c in valeur), f"Chiffre dans hist : {valeur!r}"
