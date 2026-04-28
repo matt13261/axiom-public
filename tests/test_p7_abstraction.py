@@ -237,3 +237,20 @@ def test_cardinalite_hist_random_play_inferieure_2500():
         seg_hist = cle.split('|')[5]    # "hist=..."
         hists.add(seg_hist[len('hist='):])
     assert len(hists) < 2500, f"Cardinalité hist = {len(hists)} (>= 2500)"
+
+
+# =============================================================================
+# RED.13 — Cardinalité stacks < 400 (7³=343 + marge densité)
+# =============================================================================
+
+def test_cardinalite_stacks_random_play_inferieure_400():
+    """Après 1K iter MCCFR, le segment stacks doit avoir < 400 valeurs uniques.
+       Théorique 7³ = 343 avec PALIERS_STACK_SPIN_RUSH ; 400 = marge densité."""
+    from ai.mccfr import MCCFRHoldEm
+    trainer = MCCFRHoldEm()
+    trainer.entrainer(nb_iterations=1000, verbose=False, save_every=0)
+    stacks_set = set()
+    for cle in trainer.noeuds.keys():
+        seg_stacks = cle.split('|')[4]
+        stacks_set.add(seg_stacks)
+    assert len(stacks_set) < 400, f"Cardinalité stacks = {len(stacks_set)} (>= 400)"
