@@ -62,3 +62,30 @@ Même cause que bypass #1 : TDD Guard ne corrèle pas test cross-module avec
 implémentation. Faux positif.
 
 **Validation post-bypass** : RED.11 → GREEN. Aucune régression.
+
+---
+
+## Bypass #3 — `solver/depth_limited.py` + `solver/subgame_solver.py` (P7.4.5)
+
+**Date** : 2026-04-28
+**Fichiers** :
+- `solver/depth_limited.py:72` (import) + `:962-980` (`_cle_infoset`)
+- `solver/subgame_solver.py:62` (import top-level) + `:359-405` (zone `_log_proba_actions_adv` avec import local)
+
+**Action** : appliquer la même migration que mccfr/train_hu (PALIERS_STACK
+→ PALIERS_STACK_SPIN_RUSH + `_format_hist_avec_cap` sur le hist).
+
+**Justification** :
+Pas de test RED dédié, MAIS deux invariants croisés :
+1. `tests/test_subgame_solver.py` et `tests/test_depth_limited.py` existants
+   exigent que le solver consulte le blueprint avec des clés cohérentes.
+   Si on ne migre PAS le solver, les clés solver ne matcheront plus celles
+   du blueprint MCCFR migré → tous les lookups blueprint reviennent vides
+   → exploitabilité du depth-limited dégradée silencieusement.
+2. La spec P7 §5 liste explicitement les solvers comme "à modifier (modif si
+   construction clé locale, sinon RAS)". Vérification grep : ces 2 fichiers
+   ont une construction de clé locale → modif obligatoire.
+
+**Validation post-bypass** : tests existants `test_subgame_solver.py` et
+`test_depth_limited.py` doivent rester GREEN après migration (vérifié au
+pytest final).

@@ -69,7 +69,10 @@ from treys import Deck as _TreysDeck, Evaluator as _Evaluator
 from config.settings import TAILLES_MISE, ALL_IN, TAILLES_MISE_PREFLOP, TAILLES_MISE_POSTFLOP
 from ai.network import encoder_infoset, NB_ACTIONS_MAX
 from abstraction.card_abstraction import AbstractionCartes, AbstractionCartesV2
-from abstraction.info_set import _normaliser, PALIERS_POT, PALIERS_STACK, _discretiser_raise_frac
+from abstraction.info_set import (
+    _normaliser, PALIERS_POT, PALIERS_STACK, PALIERS_STACK_SPIN_RUSH,
+    _discretiser_raise_frac, _format_hist_avec_cap,
+)
 from engine.game_state import EtatJeu, Phase
 from engine.player import Joueur, StatutJoueur
 
@@ -963,9 +966,10 @@ class SolveurProfondeurLimitee:
         """Construit la clé d'infoset (format compatible blueprint MCCFR)."""
         phase = etat['phase']
         gb    = max(etat['grande_blinde'], 1)
+        # P7 : stacks bucketises Spin & Rush, hist abstrait S/M/L + cap 6
         pot_norm   = _normaliser(etat['pot'] / gb, PALIERS_POT)
         stacks_str = ','.join(
-            str(_normaliser(etat['stacks'][i] / gb, PALIERS_STACK))
+            str(_normaliser(etat['stacks'][i] / gb, PALIERS_STACK_SPIN_RUSH))
             for i in range(3)
         )
         raise_bucket = _discretiser_raise_frac(
@@ -976,7 +980,7 @@ class SolveurProfondeurLimitee:
                 f"|bucket={etat['buckets'][joueur_idx][phase]}"
                 f"|pot={pot_norm}"
                 f"|stacks=({stacks_str})"
-                f"|hist={etat['hist_phases'][phase]}"
+                f"|hist={_format_hist_avec_cap(etat['hist_phases'][phase])}"
                 f"|raise={raise_bucket}")
 
     def _index_global(self, action: _ActionL, phase: int = _H_PREFLOP) -> int:
