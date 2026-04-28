@@ -184,5 +184,38 @@ def test_mccfr_cle_infoset_aligne_avec_info_set():
     valeurs = [int(v) for v in inner.split(',')]
     for v in valeurs:
         assert v in PALIERS_STACK_SPIN_RUSH, (
-            f"Stack {v} pas dans PALIERS_STACK_SPIN_RUSH={PALIERS_STACK_SPIN_RUSH}"
+            f"Stack mccfr {v} pas dans PALIERS_STACK_SPIN_RUSH={PALIERS_STACK_SPIN_RUSH}"
+        )
+
+
+# =============================================================================
+# RED.11 — train_hu._cle_infoset alignée avec format P7 (HU 2 stacks)
+# =============================================================================
+
+def test_train_hu_cle_infoset_aligne():
+    """train_hu.MCCFRHeadsUp._cle_infoset doit utiliser le format P7 (rS/M/L + paliers Spin & Rush)."""
+    from train_hu import MCCFRHeadsUp
+    from abstraction.info_set import PALIERS_STACK_SPIN_RUSH
+    trainer = MCCFRHeadsUp()
+    etat = {
+        'phase'         : 0,                # PREFLOP HU
+        'grande_blinde' : 20,
+        'pot'           : 30,
+        'stacks'        : [1500, 1500],     # 2 stacks (HU)
+        'mise_courante' : 20,
+        'buckets'       : [[3, 0, 0, 0], [4, 0, 0, 0]],
+        'hist_phases'   : ['xr2r4', '', '', ''],
+    }
+    cle = trainer._cle_infoset(etat, joueur_idx=0)
+    seg_hist = cle.split('|')[5]
+    valeur_hist = seg_hist[len('hist='):]
+    # Variante B : r2→M, r4→L → 'xrMrL'
+    assert valeur_hist == 'xrMrL', f"Hist HU non abstrait : {valeur_hist!r}"
+    seg_stacks = cle.split('|')[4]
+    inner = seg_stacks[len('stacks=('):-1]
+    valeurs = [int(v) for v in inner.split(',')]
+    assert len(valeurs) == 2, "HU doit avoir 2 stacks"
+    for v in valeurs:
+        assert v in PALIERS_STACK_SPIN_RUSH, (
+            f"Stack HU {v} pas dans PALIERS_STACK_SPIN_RUSH={PALIERS_STACK_SPIN_RUSH}"
         )
