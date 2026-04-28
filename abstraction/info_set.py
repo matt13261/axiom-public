@@ -44,6 +44,10 @@ def _abstraire_sizing(idx_taille: int) -> str:
     pass
 
 
+def _format_hist_avec_cap(hist_brut: str, cap: int = 6) -> str:
+    pass
+
+
 def _discretiser_raise_frac(frac: float) -> int:
     """
     Convertit la fraction raise/pot en bucket discret (0–4).
