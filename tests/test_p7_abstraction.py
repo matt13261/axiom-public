@@ -103,3 +103,29 @@ def test_cle_infoset_format_7_segments_preserve():
     assert segments[4].startswith('stacks=(') and segments[4].endswith(')')
     assert segments[5].startswith('hist=')
     assert segments[6].startswith('raise=')
+
+
+# =============================================================================
+# RED.8 — Clé infoset utilise PALIERS_STACK_SPIN_RUSH (7 niveaux, P3..P50)
+# =============================================================================
+
+def test_cle_infoset_utilise_paliers_spin_rush():
+    """Stacks dans la clé doivent appartenir à PALIERS_STACK_SPIN_RUSH.
+       Avec stacks=1500 jetons et grande_blinde=20 → 75 BB → palier 41 (P50)."""
+    from engine.player import Joueur, TypeJoueur
+    from engine.game_state import EtatJeu
+    from abstraction.info_set import construire_cle_infoset, PALIERS_STACK_SPIN_RUSH
+    j1 = Joueur("J1", TypeJoueur.AXIOM, 1500, 0)
+    j2 = Joueur("J2", TypeJoueur.AXIOM, 1500, 1)
+    j3 = Joueur("J3", TypeJoueur.AXIOM, 1500, 2)
+    etat = EtatJeu([j1, j2, j3], petite_blinde=10, grande_blinde=20)
+    etat.nouvelle_main()
+    cle = construire_cle_infoset(etat, j1)
+    # segment stacks="stacks=(A,B,C)" — extraire les 3 valeurs
+    seg_stacks = cle.split('|')[4]              # "stacks=(...)"
+    inner = seg_stacks[len('stacks=('):-1]      # "A,B,C"
+    valeurs = [int(v) for v in inner.split(',')]
+    for v in valeurs:
+        assert v in PALIERS_STACK_SPIN_RUSH, (
+            f"Stack {v} pas dans PALIERS_STACK_SPIN_RUSH={PALIERS_STACK_SPIN_RUSH}"
+        )
