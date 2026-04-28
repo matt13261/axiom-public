@@ -41,11 +41,45 @@ from abstraction.card_abstraction import abstraction_cartes
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _abstraire_sizing(idx_taille: int) -> str:
-    pass
+    """
+    Mappe le bucket sizing brut (0..4 issu de _discretiser_raise_frac)
+    vers le sizing abstrait Spin & Rush (S/M/L) — Variante B (P7).
+
+    Mapping :
+      0, 1 → 'S'   (frac ≤ 0.33 du pot — micro raise / défensif r0)
+      2    → 'M'   (0.33 < frac ≤ 0.75 — half-pot, value/protection)
+      3, 4 → 'L'   (frac > 0.75 — pot+ / commit polarisé en short stack)
+    """
+    if idx_taille <= 1: return 'S'
+    if idx_taille == 2: return 'M'
+    return 'L'
 
 
 def _format_hist_avec_cap(hist_brut: str, cap: int = 6) -> str:
-    pass
+    """
+    Reformate l'historique brut (ex: 'xr1r3fr2a') en historique abstrait avec
+    sizings S/M/L Variante B, en ne gardant que les `cap` dernières actions.
+
+    Tokens reconnus :
+      - 'f', 'x', 'c', 'a' : 1 caractère
+      - 'r{N}' avec N ∈ 0..9 : 2 caractères, mappés via _abstraire_sizing
+
+    Storage hist_phases reste raw — cette transformation est appliquée
+    uniquement à la construction de la clé d'infoset.
+    """
+    actions = []
+    i = 0
+    while i < len(hist_brut):
+        ch = hist_brut[i]
+        if ch == 'r' and i + 1 < len(hist_brut) and hist_brut[i+1].isdigit():
+            actions.append('r' + _abstraire_sizing(int(hist_brut[i+1])))
+            i += 2
+        else:
+            actions.append(ch)
+            i += 1
+    if len(actions) > cap:
+        actions = actions[-cap:]
+    return ''.join(actions)
 
 
 def _discretiser_raise_frac(frac: float) -> int:
@@ -159,7 +193,8 @@ PALIERS_STACK = [
 ]
 
 # Paliers Spin & Rush — 7 niveaux (P3/P5/P10/P15/P22/P30/P50) — voir P7 spec
-PALIERS_STACK_SPIN_RUSH = []
+# Codes : 0=P3 (push/fold absolu), 5=P5, 8=P10, 13=P15, 19=P22, 27=P30, 41=P50
+PALIERS_STACK_SPIN_RUSH = [0, 5, 8, 13, 19, 27, 41]
 
 
 def _normaliser(valeur: float, paliers: list) -> int:
@@ -187,17 +222,18 @@ class InfoSet:
         self.bucket = abstraction_cartes.bucket(joueur.cartes, etat.board)
 
         # Pot et stacks normalisés par la grande blinde
+        # P7 : stacks bucketisés via PALIERS_STACK_SPIN_RUSH (7 niveaux)
         gb = max(etat.grande_blinde, 1)
         self.pot_norm   = _normaliser(etat.pot / gb, PALIERS_POT)
         stacks_norm     = []
         for j in etat.joueurs:
-            stacks_norm.append(_normaliser(j.stack / gb, PALIERS_STACK))
+            stacks_norm.append(_normaliser(j.stack / gb, PALIERS_STACK_SPIN_RUSH))
         self.stacks_norm = tuple(stacks_norm)
 
         # Historique de la PHASE COURANTE uniquement (compatible mccfr.py)
-        # On utilise etat.historique_phases qui est maintenu par enregistrer_action()
+        # P7 : abstraction sizing S/M/L + cap 6 actions (raw stocké côté etat)
         phase_idx       = _PHASE_IDX.get(etat.phase, 0)
-        self.historique = etat.historique_phases[phase_idx]
+        self.historique = _format_hist_avec_cap(etat.historique_phases[phase_idx])
 
         # Fraction de raise discrétisée — mise_courante / pot
         # Capture la taille de la mise face à laquelle on doit agir.
