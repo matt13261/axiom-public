@@ -76,3 +76,30 @@ def test_paliers_stack_spin_rush_7_niveaux():
     from abstraction.info_set import PALIERS_STACK_SPIN_RUSH
     assert PALIERS_STACK_SPIN_RUSH == [0, 5, 8, 13, 19, 27, 41]
     assert len(PALIERS_STACK_SPIN_RUSH) == 7
+
+
+# =============================================================================
+# RED.7 — Format clé infoset 7 segments INCHANGÉ après P7
+# =============================================================================
+
+def test_cle_infoset_format_7_segments_preserve():
+    """Invariant projet : la clé doit avoir 7 segments séparés par |.
+       Format : PHASE|pos=P|bucket=B|pot=N|stacks=(...)|hist=H|raise=R"""
+    from engine.player import Joueur, TypeJoueur
+    from engine.game_state import EtatJeu
+    from abstraction.info_set import construire_cle_infoset
+    j1 = Joueur("J1", TypeJoueur.AXIOM, 1500, 0)
+    j2 = Joueur("J2", TypeJoueur.AXIOM, 1500, 1)
+    j3 = Joueur("J3", TypeJoueur.AXIOM, 1500, 2)
+    etat = EtatJeu([j1, j2, j3], petite_blinde=10, grande_blinde=20)
+    etat.nouvelle_main()
+    cle = construire_cle_infoset(etat, j1)
+    segments = cle.split('|')
+    assert len(segments) == 7, f"Attendu 7 segments, obtenu {len(segments)}: {cle}"
+    assert segments[0] in ('PREFLOP', 'FLOP', 'TURN', 'RIVER')
+    assert segments[1].startswith('pos=')
+    assert segments[2].startswith('bucket=')
+    assert segments[3].startswith('pot=')
+    assert segments[4].startswith('stacks=(') and segments[4].endswith(')')
+    assert segments[5].startswith('hist=')
+    assert segments[6].startswith('raise=')
