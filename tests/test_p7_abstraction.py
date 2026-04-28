@@ -19,3 +19,13 @@ def test_abstraire_sizing_S_M_L_frontieres():
     assert _abstraire_sizing(2) == 'M'
     assert _abstraire_sizing(3) == 'L'
     assert _abstraire_sizing(4) == 'L'
+
+
+# =============================================================================
+# RED.2 — _abstraire_sizing : défensif bucket 0 → S
+# =============================================================================
+
+def test_abstraire_sizing_defensif_bucket_0():
+    """Bucket 0 (théoriquement non généré) → 'S' par sécurité défensive."""
+    from abstraction.info_set import _abstraire_sizing
+    assert _abstraire_sizing(0) == 'S'
