@@ -52,3 +52,16 @@ def test_format_hist_cap_garde_dernieres_actions():
     # abstraits Variante B : x, rS, rM, rL, c, rS, rM, a
     # cap=6 garde les 6 dernières : rM, rL, c, rS, rM, a → 'rMrLcrSrMa'
     assert _format_hist_avec_cap('xr1r2r3cr1r2a') == 'rMrLcrSrMa'
+
+
+# =============================================================================
+# RED.5 — _format_hist_avec_cap : hist court ≤ cap inchangé (sauf abstraction)
+# =============================================================================
+
+def test_format_hist_inferieur_cap_inchange():
+    """Hist ≤ cap actions : abstraction sizing seule, aucune action droppée."""
+    from abstraction.info_set import _format_hist_avec_cap
+    # 4 tokens (≤ 6) : xr2r3c → x, rM, rL, c → 'xrMrLc'
+    assert _format_hist_avec_cap('xr2r3c') == 'xrMrLc'
+    # hist vide reste vide
+    assert _format_hist_avec_cap('') == ''
