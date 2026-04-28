@@ -269,3 +269,24 @@ def test_kuhn_convergence_preservee():
     assert abs(valeur - VALEUR_NASH) < 0.005, (
         f"Convergence Kuhn cassée : valeur={valeur:.6f} vs Nash={VALEUR_NASH:.6f}"
     )
+
+
+# =============================================================================
+# RED.15 — Engine partie complète inchangée (GUARDRAIL invariant somme stacks)
+# =============================================================================
+
+def test_engine_partie_complete_inchangee():
+    """Invariant projet : somme stacks = NB_JOUEURS × STACK_DEPART préservée
+       après 3 mains. GUARDRAIL : déjà GREEN, P7.4 ne touche pas l'engine."""
+    from engine.game import creer_partie
+    from config.settings import NB_JOUEURS, STACK_DEPART
+    jeu = creer_partie()
+    for _ in range(3):
+        actifs = jeu.etat.joueurs_non_elimines()
+        if len(actifs) < 2:
+            break
+        jeu.jouer_une_main()
+    total = sum(j.stack for j in jeu.joueurs)
+    assert total == NB_JOUEURS * STACK_DEPART, (
+        f"Invariant somme stacks brisé : {total} != {NB_JOUEURS * STACK_DEPART}"
+    )
