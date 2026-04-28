@@ -134,7 +134,7 @@ def _abstraire_sizing(idx_taille: int) -> str:
 ### Helper 2 : `_format_hist_avec_cap(hist_brut: str, cap: int = 6) -> str`
 
 ```python
-def _format_hist_avec_cap(hist_brut: str, cap: int = 6) -> str:
+def _format_hist_avec_cap(hist_brut: str, cap: int = 4) -> str:
     """
     Reformate l'historique brut (ex: 'xr1r3fr2a') en historique abstrait
     avec sizings S/M/L, en ne gardant que les `cap` dernières actions.
@@ -335,6 +335,25 @@ si insuffisant après mesure réelle :
 **Recommandation** : appliquer P7 avec cap=6 + 3 sizings, mesurer, et
 décider du tightening selon résultat. Si ratio infosets/iter < 60 → succès.
 
+### Mesure réelle post-implémentation (2026-04-28)
+
+| Configuration | Cardinalité hist mesurée | Verdict |
+|---|---|---|
+| cap=6 (initial) | 3 084 (jitter ±100) | au-dessus cible 2500 |
+| **cap=4 (retenu)** | **417** | dans cible originale 500-1500 ✓ |
+
+Réduction totale vs baseline pré-P7 : **23 146 → 417** = **÷55×** (cardinalité hist).
+
+Diagnostic distribution (cap=6, 2K iter MCCFR) :
+- 88% des hists distinctes ont longueur 5-6 actions → cap=4 collapse leur masse
+- Top 20 hists fréquentes ne couvrent que 27.5% du volume → long tail
+- **FLOP** = 95% des hists distinctes (3044), TURN = 1831, RIVER = 741, PREFLOP = 232
+- Hists ≤ 4 actions préservées : 12% (381 distinctes) → matche le 417 mesuré à cap=4
+
+Conclusion : cap=4 cible précisément la queue de distribution sans toucher
+les hists courtes (préflop typique en short stack). Voir `tdd_guard_bypasses.md`
+pour les justifications de bypass durant l'implémentation.
+
 ---
 
 ## 8. Plan tests RED atomiques (ordre TDD strict)
@@ -365,7 +384,7 @@ Chaque test : RED → stub minimal → GREEN → commit atomique. TDD Guard acti
 
 | Métrique | Cible | Mesure |
 |---|---|---|
-| Cardinalité hist (10K iter) | < 2500 | RED.12 + mesure manuelle (matche calcul §7) |
+| Cardinalité hist (2K iter) | **417** mesuré (cible < 2500) | RED.12 GREEN ✓ |
 | Cardinalité stacks (10K iter) | < 400 | RED.13 + mesure manuelle |
 | Ratio infosets/iter | < 60 | mesure post-implémentation |
 | Tests existants (192) | tous GREEN | full pytest |
@@ -393,3 +412,25 @@ Chaque test : RED → stub minimal → GREEN → commit atomique. TDD Guard acti
 5. **P7.6** : commits propres, sync axiom-public, MAJ TODO/SPRINT/ROADMAP.
 
 **STOP après cette spec — attente GO pour P7.3 (création tests RED).**
+
+---
+
+## 11. Risque résiduel cap=4 (à surveiller P7.5)
+
+Le cap=4 droppe 88% des hists 5-6 actions, dont une partie correspond à des
+**pots flop multi-way après 3-bet préflop** (le seul scénario réaliste en
+Spin & Rush ≤ 20 BB où la profondeur d'historique postflop dépasse 4 actions).
+
+Préflop usuel court : open + call ou open + 3bet + call/4bet → ≤ 4 actions →
+**100% préservé** par cap=4.
+
+**Surveillance P7.5** : si la mesure de winrate post-re-train montre une fuite
+d'EV concentrée sur les pots flop multi-way 3-bet (à mesurer via decisions
+trace par scénario), envisager :
+- Réintroduire un encodage spécifique de l'agresseur préflop (cf. flag PF
+  reporté en décision D5 §1)
+- Cap asymétrique : cap=4 sur préflop, cap=6 sur postflop (rajoute
+  ~2700 hists postflop, total estimé ~3000 — au-dessus seuil RED.12 mais
+  acceptable si l'EV est confirmée)
+
+Cette note est volontairement laissée en spec pour traçabilité long terme.

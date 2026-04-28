@@ -55,7 +55,7 @@ def _abstraire_sizing(idx_taille: int) -> str:
     return 'L'
 
 
-def _format_hist_avec_cap(hist_brut: str, cap: int = 6) -> str:
+def _format_hist_avec_cap(hist_brut: str, cap: int = 4) -> str:
     """
     Reformate l'historique brut (ex: 'xr1r3fr2a') en historique abstrait avec
     sizings S/M/L Variante B, en ne gardant que les `cap` dernières actions.

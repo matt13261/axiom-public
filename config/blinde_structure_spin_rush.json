@@ -1,0 +1,29 @@
+{
+  "stack_depart": 500,
+  "format": "Spin & Rush Betclic 3-max hyper-turbo",
+  "niveaux": [
+    {"niveau": 1, "small_blind": 10,  "big_blind": 20},
+    {"niveau": 2, "small_blind": 15,  "big_blind": 30},
+    {"niveau": 3, "small_blind": 20,  "big_blind": 40},
+    {"niveau": 4, "small_blind": 30,  "big_blind": 60},
+    {"niveau": 5, "small_blind": 40,  "big_blind": 80},
+    {"niveau": 6, "small_blind": 50,  "big_blind": 100},
+    {"niveau": 7, "small_blind": 60,  "big_blind": 120},
+    {"niveau": 8, "small_blind": 80,  "big_blind": 160}
+  ],
+  "duree_par_niveau_secondes": {
+    "x2": 60,
+    "x3": 90,
+    "x4_plus": 120
+  },
+  "stack_buckets_BB": {
+    "P3": {"min": 0,  "max": 4,  "phase": "push/fold absolu",        "niveaux_typiques": "7-8"},
+    "P5": {"min": 5,  "max": 7,  "phase": "push/fold + ICM",         "niveaux_typiques": "5-6"},
+    "P10":{"min": 8,  "max": 12, "phase": "open shove + 3-bet jam",  "niveaux_typiques": "3-4"},
+    "P15":{"min": 13, "max": 18, "phase": "mix, fold equity importante","niveaux_typiques": "2-3"},
+    "P22":{"min": 19, "max": 26, "phase": "mid-stack postflop limite","niveaux_typiques": "1 fin"},
+    "P30":{"min": 27, "max": 40, "phase": "mid-stack postflop plein","niveaux_typiques": "1 debut"},
+    "P50":{"min": 41, "max": null, "phase": "stack accumule (rare)", "niveaux_typiques": "post-doubling"}
+  },
+  "note": "Validé avec joueur Betclic réel - 2026-04-27. Buckets implémentés dans abstraction/info_set.py::PALIERS_STACK_SPIN_RUSH."
+}

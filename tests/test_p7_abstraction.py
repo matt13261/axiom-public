@@ -42,16 +42,18 @@ def test_format_hist_sizing_remplace_chiffres():
 
 
 # =============================================================================
-# RED.4 — _format_hist_avec_cap : cap=6 garde les 6 dernières actions
+# RED.4 — _format_hist_avec_cap : cap=4 (default) garde les 4 dernières actions
 # =============================================================================
 
 def test_format_hist_cap_garde_dernieres_actions():
-    """8 actions raw → cap=6 → 6 dernières actions abstraites."""
+    """8 actions raw → cap=4 (default) → 4 dernières actions abstraites."""
     from abstraction.info_set import _format_hist_avec_cap
     # raw 'xr1r2r3cr1r2a' = 8 tokens : x, r1, r2, r3, c, r1, r2, a
     # abstraits Variante B : x, rS, rM, rL, c, rS, rM, a
-    # cap=6 garde les 6 dernières : rM, rL, c, rS, rM, a → 'rMrLcrSrMa'
-    assert _format_hist_avec_cap('xr1r2r3cr1r2a') == 'rMrLcrSrMa'
+    # cap=4 garde les 4 dernières : c, rS, rM, a → 'crSrMa'
+    assert _format_hist_avec_cap('xr1r2r3cr1r2a') == 'crSrMa'
+    # cap explicite=6 pour vérifier que le param fonctionne aussi
+    assert _format_hist_avec_cap('xr1r2r3cr1r2a', cap=6) == 'rMrLcrSrMa'
 
 
 # =============================================================================
