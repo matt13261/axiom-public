@@ -40,6 +40,10 @@ from abstraction.card_abstraction import abstraction_cartes
 # DISCRÉTISATION DE LA FRACTION DE RAISE
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _abstraire_sizing(idx_taille: int) -> str:
+    pass
+
+
 def _discretiser_raise_frac(frac: float) -> int:
     """
     Convertit la fraction raise/pot en bucket discret (0–4).
