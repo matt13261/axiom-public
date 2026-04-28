@@ -1,5 +1,22 @@
 # Projet AXIOM — Instructions Claude
 
+## Repo public (axiom-public) — pour Claude consultant
+
+Le repo `axiom-public` (https://github.com/matt13261/axiom-public) est un
+mirror lecture seule, sync auto via `scripts/sync_public.sh` (hook post-commit).
+
+**Exposé** : `engine/`, `abstraction/`, `ai/`, `solver/`, `training/`,
+`scripts/`, `config/`, `docs/`, `tests/`, fichiers racine (`CLAUDE.md`,
+`train.py`, etc.).
+
+**NON exposé** : `data/` (poids), `screen/` (scraper Betclic), binaires
+(`*.pkl`/`*.pt`/`*.npz`/`*.log`/`*.zip`), secrets (`.env*`/`*.secrets`/
+`credentials*`), caches (`__pycache__/`).
+
+Avant tout ajout d'un fichier potentiellement sensible, vérifier que la
+liste d'exclusion de `scripts/sync_public.sh` le couvre.
+
+
 ## ⚠️ EN DÉBUT DE CHAQUE SESSION
 
 **LIRE EN PREMIER (dans l'ordre) :**
