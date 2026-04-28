@@ -33,24 +33,66 @@ explose à 19 492 valeurs uniques en 2K iter ; `stacks` à 1 416 valeurs.
 | 3 | `0.75 < frac ≤ 1.25` | 1.0 | pot raise |
 | 4 | `frac > 1.25` | 1.5 | over-raise |
 
-### Mapping vers 3 sizings abstraits
+### Comparaison de deux variantes de mapping
 
+**Variante A — équilibrée (proposition initiale)** :
 ```
-r0, r1   →  rS   (frac ≤ 0.33      — défensif r0 inclus, micro raise)
-r2, r3   →  rM   (0.33 < frac ≤ 1.25 — small à pot)
-r4       →  rL   (frac > 1.25      — overbet, action distinctive)
+r0, r1   →  rS   (frac ≤ 0.33)
+r2, r3   →  rM   (0.33 < frac ≤ 1.25)
+r4       →  rL   (frac > 1.25)
 ```
 
-**Justification** :
+**Variante B — Spin & Rush short-stack (ALTERNATIVE retenue)** :
+```
+r0, r1   →  rS   (frac ≤ 0.33      — micro raise / défensif r0)
+r2       →  rM   (0.33 < frac ≤ 0.75 — half-pot, value/protection)
+r3, r4   →  rL   (frac > 0.75       — pot + overbet, polarisé/committing)
+```
+
+### Analyse comparative pour le format Spin & Rush
+
+Stack effectif typique en Spin & Rush ≤ 20 BB. Sur un flop dans un pot de
+~10 BB :
+| Sizing | Bet | Stack restant | Interprétation stratégique |
+|---|---|---|---|
+| `r1` (frac=0.165) | ~1.5 BB | ~18 BB | Probe, info bet, range bet large |
+| `r2` (frac=0.54)  | ~5 BB   | ~14 BB | Standard cbet, value mince/protection |
+| `r3` (frac=1.0)   | ~10 BB  | ~9 BB  | **Commit** — l'opposant doit shove ou fold |
+| `r4` (frac=1.5)   | ~15 BB  | ~4 BB  | **Commit polarisé** — overbet shove-induce |
+
+**Distinction critique** : `r3` (pot) en short-stack = engagement quasi-total
+du stack restant (SPR ~1 après bet → toute action future = all-in).
+Stratégiquement identique à `r4` (overbet) : range polarisé monstres+bluffs.
+À l'inverse, `r2` (half-pot) laisse de la marge postflop (SPR ~3 restant)
+et appartient à un range linéaire value/protection.
+
+**Variante A** fusionne `r2` + `r3` dans `rM` → perd la frontière
+"non-committing / committing" qui est **LA décision-clé** en Spin & Rush.
+
+**Variante B** aligne la frontière sur le seuil de commitment SPR ~1 :
+- `rS` / `rM` = "je peux jouer postflop"
+- `rL` = "je m'engage, range polarisé"
+
+**Verdict** : retenir **Variante B**. Distinction stratégique short-stack
+préservée. Coût marginal : variante B groupe `r3` (pot, ~3-betting standard)
+avec `r4` (overbet rare). Acceptable car en short-stack `r3` EST un commit
+de facto, donc proche d'un overbet en termes de range.
+
+**Pondération** : si le diagnostic post-P7 montre des winrates négatifs sur
+les spots commitment-aware, considérer une variante C à 4 sizings
+(`rS`/`rM`/`rL_pot`/`rL_over`) — coût cardinalité +33%.
+
+### Justification frontières (Variante B retenue)
+
 - `r0` est défensif (le code `r0` ne devrait jamais être généré car
   `_discretiser_raise_frac(0) = 0` mais le code `f'r{bucket}'` n'est appelé que
   pour des RAISE avec montant > 0, donc bucket ∈ {1,2,3,4}). Inclus dans `rS`
   par sécurité.
-- Frontière `rS / rM` à 0.33 : c'est la frontière pseudo-harmonique
-  `_CENTRES_RAISE_BUCKET[0] = 0.165` × 2 ≈ point neutre entre micro et small.
-- Frontière `rM / rL` à 1.25 : sépare les sizings "value/protection standard"
-  des "shoves agressifs" qui dénotent un range polarisé.
-- 3 buckets symétriques (S/M/L) lisibles et interprétables.
+- Frontière `rS / rM` à 0.33 : seuil pseudo-harmonique `_CENTRES_RAISE_BUCKET[0]
+  = 0.165` × 2 — point neutre entre micro et standard.
+- Frontière `rM / rL` à 0.75 : seuil SPR-aware. Au-dessus, on engage > 75%
+  du pot → on s'engage à jouer all-in postflop avec un stack ≤ 20 BB.
+- 3 buckets asymétriques mais sémantiquement clairs (probe / value / commit).
 
 ### Conservation des sémantiques distinctives
 
@@ -79,13 +121,13 @@ def _abstraire_sizing(idx_taille: int) -> str:
     Mappe le bucket sizing brut (0..4 issu de _discretiser_raise_frac)
     vers le sizing abstrait Spin & Rush (S/M/L).
 
-    Mapping :
-      0, 1 → 'S'   (frac ≤ 0.33 du pot)
-      2, 3 → 'M'   (0.33 < frac ≤ 1.25)
-      4    → 'L'   (frac > 1.25)
+    Mapping (Variante B — Spin & Rush short-stack) :
+      0, 1 → 'S'   (frac ≤ 0.33    — micro / probe)
+      2    → 'M'   (frac ≤ 0.75    — half-pot, value/protection)
+      3, 4 → 'L'   (frac > 0.75    — pot+ / commit polarisé)
     """
     if idx_taille <= 1: return 'S'
-    if idx_taille <= 3: return 'M'
+    if idx_taille == 2: return 'M'
     return 'L'
 ```
 
@@ -310,7 +352,7 @@ décider du tightening selon résultat. Si ratio infosets/iter < 60 → succès.
 | RED.9 | `test_cle_infoset_hist_abstrait_format_S_M_L` | test_p7_abstraction.py | clé contient rS/rM/rL pas r1..r4 |
 | RED.10 | `test_mccfr_cle_infoset_aligne_avec_info_set` | test_mccfr.py | cohérence cross-module |
 | RED.11 | `test_train_hu_cle_infoset_aligne` | test_hu.py | cohérence HU |
-| RED.12 | `test_cardinalite_hist_random_play_inferieure_5000` | test_p7_abstraction.py | objectif macro (seuil large pour valider, on tighten après) |
+| RED.12 | `test_cardinalite_hist_random_play_inferieure_2500` | test_p7_abstraction.py | matche calcul section 7 (~2470). Si dépassé en P7.5 : tighten cap=4 ou re-discuter mapping — pas de relâchement du seuil (anti-TDD) |
 | RED.13 | `test_cardinalite_stacks_random_play_inferieure_400` | test_p7_abstraction.py | 7³=343 + marge densité |
 | RED.14 | `test_kuhn_convergence_preservee` | test_mccfr.py existant | non-régression |
 | RED.15 | `test_engine_partie_complete_inchangee` | test_engine.py existant | non-régression invariant |
@@ -323,7 +365,7 @@ Chaque test : RED → stub minimal → GREEN → commit atomique. TDD Guard acti
 
 | Métrique | Cible | Mesure |
 |---|---|---|
-| Cardinalité hist (10K iter) | < 5000 | RED.12 + mesure manuelle |
+| Cardinalité hist (10K iter) | < 2500 | RED.12 + mesure manuelle (matche calcul §7) |
 | Cardinalité stacks (10K iter) | < 400 | RED.13 + mesure manuelle |
 | Ratio infosets/iter | < 60 | mesure post-implémentation |
 | Tests existants (192) | tous GREEN | full pytest |
@@ -336,9 +378,18 @@ Chaque test : RED → stub minimal → GREEN → commit atomique. TDD Guard acti
 ## 10. Ordre d'exécution P7.3 → P7.6
 
 1. **P7.3** : créer `tests/test_p7_abstraction.py`, RED.1 → RED.15 atomiquement.
-2. **P7.4** : implémenter helpers + modif 6 fichiers, GREEN tous tests.
-3. **P7.5** : mini training local 10K iter, mesurer cardinalité réelle, ajuster
-   cap si nécessaire.
-4. **P7.6** : commits propres, sync axiom-public, MAJ TODO/SPRINT/ROADMAP.
+2. **P7.3.bis — Tag de revert** (juste avant P7.4) :
+   ```bash
+   git tag -a pre-p7 -m "Tag avant migration P7 : PALIERS_STACK 18 niveaux + hist raw r0..r4. Revert possible si re-train cloud post-P7 échoue."
+   git push origin pre-p7
+   ```
+   Compense l'absence de flag config dynamique. `git checkout pre-p7` permet
+   un retour propre à l'état pré-migration si le re-train cloud post-P7
+   produit des winrates dégradés non-récupérables.
+3. **P7.4** : implémenter helpers + modif 6 fichiers, GREEN tous tests.
+4. **P7.5** : mini training local 10K iter, mesurer cardinalité réelle.
+   Si hist > 2500 : tighten cap=4 OU itérer sur mapping (variante C 4-buckets).
+   Pas de relâchement du seuil 2500 dans RED.12.
+5. **P7.6** : commits propres, sync axiom-public, MAJ TODO/SPRINT/ROADMAP.
 
 **STOP après cette spec — attente GO pour P7.3 (création tests RED).**
