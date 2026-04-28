@@ -154,3 +154,35 @@ def test_cle_infoset_hist_abstrait_format_S_M_L():
     assert valeur == 'xrSrL', f"Hist non abstrait : {valeur!r}"
     # Aucun chiffre ne doit subsister dans le segment hist
     assert not any(c.isdigit() for c in valeur), f"Chiffre dans hist : {valeur!r}"
+
+
+# =============================================================================
+# RED.10 — mccfr._cle_infoset alignée avec info_set (cohérence cross-module)
+# =============================================================================
+
+def test_mccfr_cle_infoset_aligne_avec_info_set():
+    """mccfr.MCCFRHoldEm._cle_infoset doit utiliser le format P7 (rS/M/L + paliers Spin & Rush)."""
+    from ai.mccfr import MCCFRHoldEm
+    from abstraction.info_set import PALIERS_STACK_SPIN_RUSH
+    trainer = MCCFRHoldEm()
+    # Etat dict minimal requis par _cle_infoset
+    etat = {
+        'phase'         : 0,                # PREFLOP
+        'grande_blinde' : 20,
+        'pot'           : 30,
+        'stacks'        : [1500, 1500, 1500],
+        'mise_courante' : 20,
+        'buckets'       : [[3, 0, 0, 0], [4, 0, 0, 0], [5, 0, 0, 0]],
+        'hist_phases'   : ['xr1r3', '', '', ''],
+    }
+    cle = trainer._cle_infoset(etat, joueur_idx=0)
+    seg_hist = cle.split('|')[5]
+    valeur_hist = seg_hist[len('hist='):]
+    assert valeur_hist == 'xrSrL', f"Hist mccfr non abstrait : {valeur_hist!r}"
+    seg_stacks = cle.split('|')[4]
+    inner = seg_stacks[len('stacks=('):-1]
+    valeurs = [int(v) for v in inner.split(',')]
+    for v in valeurs:
+        assert v in PALIERS_STACK_SPIN_RUSH, (
+            f"Stack {v} pas dans PALIERS_STACK_SPIN_RUSH={PALIERS_STACK_SPIN_RUSH}"
+        )
