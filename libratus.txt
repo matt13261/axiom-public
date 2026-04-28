@@ -1,0 +1,252 @@
+================================================================================
+                      LIBRATUS - FONCTIONNEMENT EXACT DE L'IA
+================================================================================
+
+1. PRÉSENTATION GÉNÉRALE
+------------------------
+Libratus est une intelligence artificielle développée à l'Université Carnegie
+Mellon (CMU, Pittsburgh) par le professeur Tuomas Sandholm et son doctorant
+Noam Brown. Elle est conçue pour jouer au poker Texas Hold'em No-Limit
+en format Heads-Up (1 contre 1, sans limite de mise).
+
+Nom latin "Libratus" = "équilibré" (référence à l'équilibre de Nash).
+
+Particularité fondamentale : Libratus N'A PAS de stratégie fixe pré-programmée.
+Elle utilise un algorithme qui CALCULE sa stratégie.
+
+Elle n'utilise PAS de réseaux de neurones (contrairement à DeepStack ou AlphaGo).
+Elle repose entièrement sur la théorie des jeux et l'optimisation mathématique.
+
+
+2. LE PROBLÈME : POURQUOI LE POKER EST DIFFICILE
+-------------------------------------------------
+- Jeu à information IMPARFAITE (on ne voit pas les cartes adverses).
+- Notion de bluff et de tromperie.
+- Arbre de décision de ~10^161 points de décision possibles au Texas Hold'em
+  No-Limit Heads-Up (un 1 suivi de 161 zéros).
+- Impossible à résoudre par force brute comme les échecs ou le Go.
+
+
+3. ARCHITECTURE : LES TROIS MODULES DE LIBRATUS
+------------------------------------------------
+
+    ┌─────────────────────────────────────────────────────────┐
+    │  MODULE 1 : BLUEPRINT STRATEGY (stratégie en amont)     │
+    │  → calculée AVANT le match, sur supercalculateur        │
+    └─────────────────────────────────────────────────────────┘
+                              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │  MODULE 2 : NESTED SUBGAME SOLVING (résolution en temps │
+    │  réel des sous-jeux en fin de main)                     │
+    └─────────────────────────────────────────────────────────┘
+                              ↓
+    ┌─────────────────────────────────────────────────────────┐
+    │  MODULE 3 : SELF-IMPROVER (auto-amélioration nocturne)  │
+    └─────────────────────────────────────────────────────────┘
+
+
+--------------------------------------------------------------------------------
+MODULE 1 : LA "BLUEPRINT STRATEGY" (stratégie directrice)
+--------------------------------------------------------------------------------
+
+Objectif : pré-calculer une stratégie de référence applicable à tout le jeu.
+
+Principe :
+  a) ABSTRACTION du jeu : le jeu complet (10^161 décisions) est trop grand.
+     Libratus regroupe les situations "stratégiquement similaires" en les
+     traitant comme identiques. Exemple : une couleur au Roi et une couleur à
+     la Dame sont traitées comme équivalentes. Cela réduit drastiquement la
+     taille de l'arbre.
+
+  b) Deux niveaux de granularité :
+        - Granularité FINE pour les premiers tours (preflop, flop).
+        - Granularité GROSSIÈRE pour les derniers tours (turn, river).
+
+  c) Résolution par l'algorithme CFR+ (voir section 4) pour calculer un
+     équilibre de Nash approché sur ce jeu abstrait.
+
+Résultat : une "blueprint strategy" = plan directeur appris hors-ligne.
+
+Coût de calcul : 15 millions d'heures-cœur (core-hours) sur le supercalculateur
+Bridges du Pittsburgh Supercomputing Center.
+
+
+--------------------------------------------------------------------------------
+MODULE 2 : "NESTED SUBGAME SOLVING" (résolution imbriquée des sous-jeux)
+--------------------------------------------------------------------------------
+
+Objectif : quand arrivent les phases décisives (turn, river), remplacer la
+stratégie grossière par une stratégie FINE, calculée en temps réel.
+
+Principe :
+  a) Dès que la main atteint un sous-jeu important, Libratus construit une
+     nouvelle abstraction beaucoup plus fine du sous-jeu en cours.
+  b) Elle résout ce sous-jeu EN TEMPS RÉEL (pendant la réflexion du coup)
+     en utilisant le supercalculateur Bridges.
+  c) Elle conserve la cohérence avec la blueprint strategy pour ne pas se
+     "trahir" stratégiquement entre sous-jeux (équilibre global maintenu).
+
+Innovation majeure : l'algorithme "nested subgame solving" abandonne la
+technique classique d'"action mapping" (où une mise non prévue est
+approximée à la mise la plus proche). Si l'adversaire fait une mise hors
+abstraction, Libratus REcalcule à la volée la réponse optimale.
+
+C'est cette technique qui permettait à Libratus de contrer les mises
+"bizarres" des humains qui cherchaient à la sortir de son livre.
+
+
+--------------------------------------------------------------------------------
+MODULE 3 : "SELF-IMPROVER" (auto-amélioration)
+--------------------------------------------------------------------------------
+
+Objectif : boucher les trous de la blueprint strategy au fil du tournoi.
+
+Principe (unique en IA de poker) :
+  a) Contrairement à d'autres IA, Libratus n'essaie PAS d'exploiter les
+     faiblesses des adversaires (ce qui l'exposerait à être contre-exploitée).
+  b) Elle analyse les tailles de mises que ses adversaires utilisent et
+     qui n'étaient pas bien couvertes par l'abstraction initiale.
+  c) Chaque NUIT pendant le tournoi, elle ajoute ces nouvelles branches de
+     décision à sa blueprint, et recalcule les stratégies correspondantes.
+  d) Le lendemain, elle revient avec une stratégie plus robuste, couvrant
+     désormais les mises non-standard qu'ont utilisées les humains la veille.
+
+Résultat : les humains avaient de moins en moins de "coups cachés" à jouer
+au fil du tournoi.
+
+
+4. L'ALGORITHME CENTRAL : CFR+ (COUNTERFACTUAL REGRET MINIMIZATION PLUS)
+------------------------------------------------------------------------
+
+CFR (Counterfactual Regret Minimization) est l'algorithme de base des IA de
+poker modernes, inventé à l'Université d'Alberta.
+
+Principe général du CFR :
+  - L'IA joue contre elle-même des milliards de mains (self-play).
+  - À chaque décision, elle calcule le "regret contrefactuel" : de combien
+    aurait-elle gagné en plus si elle avait joué différemment, sachant les
+    informations disponibles à ce point.
+  - Elle ajuste itérativement sa stratégie pour MINIMISER ce regret cumulé.
+  - La moyenne des stratégies converge vers un équilibre de Nash.
+
+Variante CFR+ (Oskari Tammelin, 2014) utilisée par Libratus :
+  - Met à zéro les regrets négatifs (au lieu de les cumuler).
+  - Converge beaucoup plus vite que CFR classique.
+  - Utilise un "moyennage pondéré" des stratégies au fil des itérations.
+
+Sur CFR+, Sandholm et Brown ont ajouté leur propre innovation pour résoudre
+les endgames (fins de main) de façon optimale et sans "action mapping".
+
+
+5. LE CONCEPT D'ÉQUILIBRE DE NASH
+----------------------------------
+Libratus vise à approximer un équilibre de Nash du jeu : une stratégie telle
+qu'aucun adversaire ne peut l'exploiter, quelle que soit sa propre stratégie.
+
+Conséquence : Libratus ne peut pas être battue à long terme par un jeu
+"optimal". Au pire, sur le très long terme, l'adversaire fait match nul
+contre elle (en théorie).
+
+C'est pour cela que Libratus ne cherche PAS à profiler/exploiter l'humain :
+elle joue la stratégie la moins exploitable possible.
+
+
+6. RESSOURCES DE CALCUL
+------------------------
+- Supercalculateur : BRIDGES (Pittsburgh Supercomputing Center).
+- Entraînement pré-tournoi : 15 millions d'heures-cœur.
+- Calcul pendant le tournoi : 4 millions d'heures-cœur supplémentaires.
+- Comparaison : le prédécesseur Claudico (2015) avait utilisé seulement
+  2 à 3 millions d'heures-cœur.
+
+
+7. RÉSULTATS DU TOURNOI "BRAINS VS. ARTIFICIAL INTELLIGENCE"
+-------------------------------------------------------------
+Dates : du 11 au 31 janvier 2017 (20 jours).
+Lieu : Rivers Casino, Pittsburgh, Pennsylvanie.
+Mains jouées : 120 000 (augmentées de 50 % pour assurer la significativité
+statistique).
+
+4 joueurs professionnels de poker :
+  - Jason Les
+  - Dong Kim
+  - Daniel McAulay
+  - Jimmy Chou
+
+Résultat final : Libratus a gagné $1 766 250 (en jetons, match fictif).
+Performance : 14,7 big blinds / 100 mains (147 millibigs/main) — "exceptionnel"
+et statistiquement ultra-significatif.
+
+Scores individuels (pertes des humains) :
+  - Jason Les        : -$880 087
+  - Jimmy Chou       : -$522 857
+  - Daniel McAulay   : -$277 657
+  - Dong Kim         : -$85 649
+
+Citation de Dong Kim : "J'avais l'impression de jouer contre quelqu'un qui
+trichait, comme si elle voyait mes cartes."
+
+
+8. DIFFÉRENCES AVEC LES AUTRES IA DE POKER
+-------------------------------------------
+
+CLAUDICO (2015, CMU, même équipe) :
+  - Prédécesseur direct de Libratus.
+  - Avait PERDU contre 4 pros en 2015 (statistiquement non significatif).
+  - Utilisait "action mapping" pour les mises hors abstraction.
+
+DEEPSTACK (2017, Alberta + Prague, en parallèle) :
+  - Utilise des RÉSEAUX DE NEURONES profonds pour évaluer les feuilles.
+  - Bat aussi les humains (49 bb/100 mains sur 44 000 mains contre 11 pros).
+  - Conditions de test différentes → comparaison directe difficile.
+  - Approche "deep learning", Libratus est 100 % théorie des jeux.
+
+PLURIBUS (2019, Facebook AI + CMU, Noam Brown) :
+  - Successeur multi-joueurs (6 joueurs) de Libratus.
+  - Beaucoup plus léger (ordinaire) car utilise une blueprint plus maligne
+    + recherche en profondeur limitée.
+
+
+9. INNOVATIONS STRATÉGIQUES OBSERVÉES
+--------------------------------------
+- Style de mises "non conventionnel" : Libratus pariait parfois $20 000
+  dans un pot à $100, ce que ne faisaient pas les humains.
+- Overbets massifs sur la river adoptés depuis par la communauté poker.
+- Randomisation systématique des actions pour rester imprévisible.
+- Mêmes mains jouées différemment selon des probabilités calculées
+  (stratégie mixte, caractéristique d'un équilibre de Nash).
+
+
+10. APPLICATIONS AU-DELÀ DU POKER
+----------------------------------
+Tuomas Sandholm a co-fondé Strategy Robot, Strategic Machine et Optimized
+Markets pour appliquer la technologie Libratus à :
+  - La cybersécurité (défense contre attaquants à information cachée).
+  - Les négociations commerciales.
+  - La planification médicale (ex. thérapies contre le cancer).
+  - Les enchères et la stratégie militaire.
+  - Toute situation stratégique à INFORMATION IMPARFAITE.
+
+
+11. PUBLICATIONS CLÉS
+----------------------
+- Brown, N. & Sandholm, T. (2017). "Libratus: The Superhuman AI for
+  No-Limit Poker." IJCAI 2017.
+- Brown, N. & Sandholm, T. (2018). "Superhuman AI for heads-up no-limit
+  poker: Libratus beats top professionals." Science, vol. 359.
+- Tammelin, O. (2014). "Solving Large Imperfect Information Games using
+  CFR+." arXiv:1407.5042.
+
+
+12. RÉSUMÉ EN UNE PHRASE
+-------------------------
+Libratus est une IA qui calcule en amont une stratégie quasi-optimale
+(équilibre de Nash approché) via l'algorithme CFR+ sur un jeu abstrait,
+puis la raffine en temps réel (nested subgame solving) et la complète
+chaque nuit (self-improver), le tout sans réseau de neurones, sur le
+supercalculateur Bridges.
+
+================================================================================
+                     Fin du document — sources : CMU, Science,
+                     IJCAI 2017, Wikipedia, Noam Brown (papers).
+================================================================================

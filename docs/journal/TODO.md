@@ -38,6 +38,10 @@
       - TDD : test_train_cloud_importable, produces_output, exits_if_no_centroides
 - [x] **Étape G.2** : VM axiom-training créée (n2-standard-8, europe-west4-a)
       - env vérifié : MCCFRHoldEm OK, centroides (50,3) OK
+- [x] **Étape G.3.fix** : multiprocessing + batches dans train_cloud.py
+      - 4 nouveaux tests TDD GREEN (192/192 total)
+      - Speedup local 2.5× (W4 vs W1 sur 1000 it)
+      - Backward compat : --workers 1 reste inline
 - [x] **Étape G.3** : pilot run lancé — EN COURS
       - PID 3304 sur axiom-training, 5M itérations
       - Log : ~/axiom/logs/pilot_20260427_184324.log

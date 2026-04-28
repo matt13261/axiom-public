@@ -1,0 +1,4 @@
+# abstraction/__init__.py
+from abstraction.action_abstraction import AbstractionAction, abstraction_action
+from abstraction.card_abstraction import AbstractionCartes, abstraction_cartes
+from abstraction.info_set import InfoSet, construire_cle_infoset

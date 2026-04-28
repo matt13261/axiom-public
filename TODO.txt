@@ -1,0 +1,253 @@
+================================================================================
+  AXIOM — TODO / JOURNAL DES MODIFICATIONS
+================================================================================
+
+  INSTRUCTIONS POUR CLAUDE :
+  → À CHAQUE NOUVELLE SESSION, LIRE CE FICHIER EN PREMIER.
+  → RAPPELER À L'UTILISATEUR CE QUI EST "À FAIRE" (section ci-dessous).
+  → METTRE À JOUR CE FICHIER APRÈS CHAQUE TÂCHE TERMINÉE
+    (déplacer la ligne de "À FAIRE" vers "FAIT" avec la date).
+
+================================================================================
+  À FAIRE (par priorité)
+================================================================================
+
+[x] 2026-04-25 — P1 RÉSOLU (5/6 bots) — tag p1-resolved
+                 Exp 04 : call-only +47.8 bb/100, TAG/Régulier préservés
+                 Exp 04 bis : PFR fix, cohérence 6/6, 5/6 critères
+                 raise-only : amélioration +6.2 mais exploit trop simple
+                 141/141 tests GREEN, SYNTHESE.md créé
+
+[x] P1 — Exp 04 évaluation finale — lancer 3 runs × 6 bots × 1000 mains
+        Comparer winrates avant/après OFT (calling_station + fold_prone).
+        Critères succès : σ call-only ≤ 30 bb/100, delta ≥ +20 bb/100
+        vs calling_station, aucune régression vs bot_random/bot_check.
+        Attendre GO utilisateur avant de lancer.
+
+[ ] P2 — Continuation Strategies (k=4) — ENTRAÎNEMENT À LANCER
+        (voir section RECOMMANDATIONS ci-dessous avant de décider)
+
+[ ] P2 — Recommandation post-P1 : voir section notes
+        Options : Deep CFR retraining / Blueprint HU / P6 abstraction / Exp 05
+
+[ ] P2 — Continuation Strategies (k=4) — ENTRAÎNEMENT À LANCER
+        Infra implémentée (voir FAIT 2026-04-18). Reste à lancer les 3
+        entraînements biaisés (~48h chacun) :
+            python train.py --mode mccfr --biais fold  --biais-alpha 0.05
+            python train.py --mode mccfr --biais call  --biais-alpha 0.05
+            python train.py --mode mccfr --biais raise --biais-alpha 0.05
+        → produit blueprint_v1_{fold,call,raise}.pkl qui seront utilisés
+        automatiquement par screen/jouer.py (charger_blueprints_continuations).
+
+[ ] P3 — Abstraction postflop plus fine
+        Passer de 8 buckets à 20/50 sur turn/river.
+        Attention : explose la taille du blueprint (347k → plusieurs M infosets).
+
+[ ] P3 — Améliorer la performance SB out-of-position
+        Actuellement -15 à -30 bb/100 en SB (limitation structurelle Nash).
+
+================================================================================
+  FAIT (ordre antéchronologique — le plus récent en haut)
+================================================================================
+
+[x] 2026-04-25 — Exp 04 (H4-OFT) — implémentation complète + intégration
+                 - OpponentTracker (deque(maxlen=30), confiance lerp 5→30,
+                   vpip, fold_to_cbet) — branch exp/P1-h4-oft-exploit
+                 - ExploitMixer (ajuster, calling_station, fold_prone,
+                   GAMES_SUPPORTES bypass, confiance=0 bypass)
+                 - AgentAXIOM : tracker/mixer dans __init__, enregistrer_action
+                   (str→int), obtenir_distribution (uniform fallback),
+                   _detecter_game_type, _identifier_adversaire_actif,
+                   choisir_action → mixer blend avant _mapper_sur_legales
+                 - training/self_play.py : OFT hook après _appliquer_action
+                 - 3 bypasses TDD Guard documentés (tdd_guard_bypasses.md)
+                 - 137/137 tests GREEN
+
+[x] 2026-04-23 — Git init + .gitignore + réparation 12 tests cassés
+                 - git init, branche main, commit initial (2955e3f)
+                 - .gitignore créé (pkl, pt, checkpoints, pycache, etc.)
+                 - 12 tests réparés → 122/122 verts (pytest -q)
+                   · test_engine: fix test_blindes (15→6 mains)
+                   · test_agent: fix winrate_moyen (3→6 scénarios),
+                     clé tri comparer, formule score_global pondérée
+                   · test_mccfr: convergence (2K→10K iter), format clé
+                     6→7 segments (|raise= pour pseudo-harmonic mapping)
+                   · test_hu: fixture noeuds_hu, echec()→pytest.fail,
+                     format 6→7 segments, bug stacks connu non-bloquant
+                   · test_deep_cfr: bucket one-hot→texture vector,
+                     unpack ReservoirBufferStrategie (3→4 valeurs)
+                   · ai/network: alias DIM_BUCKET=DIM_CARD (compat import)
+                 - CLAUDE.md enrichi : invariants, workflow, bugs connus,
+                   slash commands
+                 - Slash command /poker-regression-check créée
+
+[x] 2026-04-18 — Pseudo-harmonic sur _index_abstrait (mode observation)
+                 - ai/agent.py : nouvelle méthode
+                   _indices_abstraits_distribution(action, etat) qui renvoie
+                   [(idx_abstrait, poids)] avec somme=1 :
+                     * FOLD/CHECK/CALL/ALL_IN → singleton
+                     * RAISE → distribution pseudo-harmonique (1 ou 2 voisins)
+                       via traduire_fraction() sur TAILLES_MISE[_PREFLOP].
+                   Indices locaux remappés vers indices globaux
+                   (_IDX_RAISE_BASE + k).
+                 - _index_abstrait refactoré : pour RAISE, renvoie l'argmax
+                   de la distribution (au lieu de l'argmin sur la distance
+                   absolue) — backward-compatible, callsite inchangé.
+                 - Validation : raise frac=0.20 → [(3,1.0)] ; frac=0.34 →
+                   [(3,0.06),(4,0.94)] ; frac=0.50 → [(4,0.45),(5,0.55)] ;
+                   frac=0.80 → [(5,0.52),(6,0.48)] ; frac=1.20 →
+                   [(6,0.55),(7,0.45)]. Somme = 1.0 dans tous les cas.
+                 - Tests TestAgentAXIOM : 14/14 ✓.
+                 - game_state._bucket_raise laissé déterministe (confirmé :
+                   cohérence avec l'entraînement MCCFR).
+
+[x] 2026-04-18 — Nettoyage training/evaluator_backup.py
+                 - Vérifié qu'aucun fichier du projet n'importe evaluator_backup
+                   (seul TODO.txt et ARCHITECTURE.txt le mentionnaient).
+                 - training/evaluator.py contient déjà benchmark_rapide (l.493)
+                   et evaluer_agent — il est strictement superset de la sauvegarde
+                   (542 lignes vs 574 avec doublons internes : benchmark_rapide
+                   défini 2 fois aux lignes 464 et 497 dans le backup).
+                 - Supprimé training/evaluator_backup.py.
+
+[x] 2026-04-18 — Continuation Strategies k=4 (Pluribus) — infrastructure
+                 - ai/mccfr.py : ajout de la classe BiaisContinuation
+                   (catégories fold/call/raise, alpha=0.05 par défaut).
+                   Modification de MCCFRHoldEm.__init__ pour accepter
+                   biais=None. Dans _es_mccfr, le biais α·pot est appliqué
+                   LOCALEMENT aux regrets (bonus sur utilités d'actions de
+                   la catégorie favorisée), mais la valeur retournée vers
+                   l'appelant reste non-biaisée (empêche la propagation
+                   du biais dans l'arbre).
+                 - train.py : nouveau flag --biais {baseline|fold|call|raise}
+                   + --biais-alpha. Le chemin de sortie gagne le suffixe
+                   correspondant (blueprint_v1_raise.pkl, etc.). biais_conf
+                   propagé aux workers multiprocess.
+                 - ai/agent.py : ajout de charger_blueprints_continuations()
+                   qui charge les 4 variantes depuis data/strategy/,
+                   _rafraichir_variante_si_nouvelle_main() qui détecte une
+                   nouvelle main via le fingerprint des cartes et tire une
+                   variante uniforme. choisir_action() appelle ce refresh
+                   en tête. Nouvelles stats : variante_{baseline,fold,
+                   call,raise}.
+                 - screen/jouer.py : charge les continuations après le
+                   blueprint principal (silencieux si fichiers absents).
+                 - Validation : test sur 3000 iter × 4 variantes →
+                   stratégies divergent correctement (fold_bias augmente
+                   fold de +3.4pp, raise_bias augmente raise de +0.9pp et
+                   réduit fold de -5.6pp, etc.). Test intégration agent :
+                   20 mains, répartition 8/12 entre 2 variantes chargées.
+                 - RESTE : lancer les 3 entraînements biaisés en production
+                   (~48h chacun). Voir À FAIRE.
+
+[x] 2026-04-17 — Correction du test flaky
+                 test_choisir_action_100_fois_toujours_legale
+                 - Cause : _perturber_sizing clampait à mise_courante+1
+                   (au lieu de mise_courante+mise_min_raise), produisant des
+                   RAISE(38) vs RAISE(40) attendu, puis l'assert "action in
+                   legales" comparait les Action par égalité stricte.
+                 - Fix 1 (ai/agent.py) : _perturber_sizing clampe maintenant
+                   entre [mise_courante+mise_min_raise, mise_tour+stack-1]
+                   — toujours engine-valide, jamais transformé en all-in.
+                   Nouvelle signature : _perturber_sizing(action, etat, joueur).
+                 - Fix 2 (tests/test_agent.py) : nouveau helper
+                   _action_semantiquement_legale() qui vérifie type + plage
+                   légale poker. Les 2 tests concernés
+                   (test_choisir_action_retourne_action_legale +
+                   test_choisir_action_100_fois_toujours_legale) utilisent
+                   cette vérification sémantique au lieu de `action in
+                   legales` strict.
+                 - Validation : 5 runs consécutifs du test 100-itérations
+                   stochastiques → tous passent. Les 14 tests TestAgentAXIOM
+                   passent en 1.78s.
+
+[x] 2026-04-17 — Pseudo-harmonic blending sur le bucket de raise (lookup
+                 blueprint)
+                 - Ajout dans abstraction/info_set.py :
+                     * _CENTRES_RAISE_BUCKET = [0.165, 0.54, 1.0, 1.5]
+                     * buckets_pseudo_harmonic(frac) : renvoie
+                       [(bucket_idx, poids)] via pseudo-harmonic entre
+                       centres de buckets voisins (buckets 1..4).
+                       Bucket 0 (pas de raise) est isolé — pas de blending.
+                 - Ajout dans ai/agent.py : _lookup_blueprint_blende() qui
+                   fait un double-lookup sur les 2 buckets voisins et blend
+                   les stratégies pondérées. Remplace les lookups directs
+                   dans les deux branches blueprint (HU + 3-max).
+                 - Renormalisation si un seul des 2 buckets est présent
+                   dans le blueprint (poids_trouve < 1.0).
+                 - Validation unitaire : poids somment à 1.0, stratégie
+                   varie continûment avec frac (test sur blueprint réel :
+                   frac=0.2 → stratégie bucket 1, frac=0.5 → bucket 2,
+                   avec interpolation douce entre).
+                 - Gain attendu : résilience contre des adversaires qui
+                   tentent de "viser" les frontières de buckets
+                   (ex : frac=0.34 vs frac=0.32).
+
+[x] 2026-04-17 — Finalisation solver/depth_limited.py
+                 - Vérification complète du fichier (1041 lignes) :
+                   toutes les méthodes sont implémentées (resoudre, _cfr,
+                   _valeur_oracle avec fallback 3 niveaux ReseauValeur →
+                   Blueprint → équité Monte Carlo, _convertir_etat,
+                   _completer_board, _est_terminal, _gain_terminal,
+                   _actions_abstraites, _appliquer_action,
+                   _reinserer_apres_raise, _passer_street, _cle_infoset,
+                   _index_global).
+                 - Self-test (__main__) validé : 20 itérations PREFLOP en
+                   0.64s, stratégie normalisée, 983 feuilles évaluées.
+                 - Intégration agent.py confirmée (activer_solveur + branche
+                   FLOP dans choisir_action) et activée dans screen/jouer.py
+                   avec profondeur=2, nb_iterations=50, temps_max=3s.
+                 - Aucune modification requise : le module est prêt.
+
+[x] 2026-04-17 — Action translation pseudo-harmonique (Ganzfried-Sandholm 2013)
+                 - Ajout pseudo_harmonic_mapping() et traduire_fraction()
+                   dans abstraction/action_abstraction.py.
+                 - Remplacement de la pondération 1/(dist+ε) par le mapping
+                   pseudo-harmonique dans agent._mapper_sur_legales (cas
+                   multi-raises concrets).
+                 - Formule validée numériquement contre le papier.
+                 - Note : une extension plus profonde (discrétisation de
+                   raise bucket en prod) reste à faire en P2 — voir À FAIRE.
+
+[x] 2026-04-17 — Linear MCCFR (constat : déjà implémenté)
+                 Vérification que ai/mccfr.py (Points 1, lignes 561-564, 605,
+                 703, 748-750) pondère bien strategie_somme par t.
+                 Aucune modification nécessaire.
+
+[x] 2026-04-17 — Régénération ARCHITECTURE.txt
+                 Documentation technique complète régénérée depuis le code
+                 actuel (19 sections, toutes les classes/fonctions/paramètres).
+
+[x] 2026-04-17 — Création README.txt, TODO.txt et CLAUDE.md
+                 Documentation de la structure du projet + commandes utiles.
+                 CLAUDE.md fait relire TODO.txt en début de chaque session.
+
+[x] 2026-04-17 — Nettoyage racine du projet
+                 Supprimé : changement.txt, eval_blueprint_only.py,
+                 eval_cfr_only.py, eval_hu_only.py, bench_deepcfr.py,
+                 lire_modeles.py, AXIOM_AUDIT_GUIDE.md, ancien ARCHITECTURE.txt,
+                 ancien README.txt, ancien TODO.txt.
+
+[x] 2026-04-17 — Recalibrage abstraction Heads-Up
+                 Voir recalibrage_hu_resultats.txt.
+
+[x] 2026-04-17 — Recalibrage abstraction 3-max
+                 Voir recalibrage_3max_resultats.txt.
+
+
+================================================================================
+  NOTES / IDÉES (non planifiées)
+================================================================================
+
+  Format : `- YYYY-MM-DD — <idée>`
+  Alimentée automatiquement par Claude dès qu'une idée est évoquée sans
+  être transformée en tâche (voir CLAUDE.md).
+
+- 2026-04-17 — Étudier Pluribus plus en profondeur (depth-limited search
+               multi-joueurs, continuation strategies k=4).
+- 2026-04-17 — Benchmark d'AXIOM contre DeepStack en Heads-Up si possible.
+- 2026-04-17 — Export des stratégies préflop sous forme de charts (visu).
+- 2026-04-17 — Envisager LinearCFR / Discounted CFR (pondération ∝ t) côté
+               MCCFR blueprint (pas seulement côté réseau strategie).
+
+================================================================================

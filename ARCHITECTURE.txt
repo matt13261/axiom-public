@@ -1,0 +1,868 @@
+================================================================================
+  AXIOM — DOCUMENTATION TECHNIQUE COMPLÈTE
+  Texas Hold'em No Limit — IA par MCCFR + Deep CFR
+  Régénérée : 2026-04-17
+================================================================================
+
+AXIOM est une IA de poker Texas Hold'em No Limit à 3 joueurs (avec mode
+Heads-Up) construite sur deux algorithmes combinés :
+  - MCCFR   (Monte Carlo Counterfactual Regret Minimization) — blueprint
+  - Deep CFR (Brown et al., ICML 2019) — généralisation par réseaux neuronaux
+
+Interface graphique Pygame — 1 humain affronte 2 instances d'AXIOM.
+
+================================================================================
+  TABLE DES MATIÈRES
+================================================================================
+
+  1.  Structure des fichiers
+  2.  Configuration (config/settings.py)
+  3.  Moteur de jeu (engine/)
+  4.  Abstraction des cartes (abstraction/card_abstraction.py)
+  5.  Abstraction des actions (abstraction/action_abstraction.py)
+  6.  Information Set (abstraction/info_set.py)
+  7.  Algorithme MCCFR (ai/mccfr.py)
+  8.  Deep CFR (ai/deep_cfr.py)
+  9.  Réseaux neuronaux (ai/network.py)
+  10. Reservoir Buffers (ai/reservoir.py)
+  11. Entraîneur PyTorch (ai/trainer.py)
+  12. Stratégie & Blueprint (ai/strategy.py)
+  13. Agent AXIOM (ai/agent.py)
+  14. Interface graphique (interface/)
+  15. Évaluation & self-play (training/)
+  16. Solver temps réel (solver/ — WIP)
+  17. Scripts racine
+  18. Tests
+  19. Flux global du système
+
+================================================================================
+  1. STRUCTURE DES FICHIERS
+================================================================================
+
+axiom/
+├── main.py                    Point d'entrée — partie humain vs AXIOM
+├── train.py                   Entraînement MCCFR + Deep CFR (3 joueurs)
+├── train_hu.py                Entraînement MCCFR Heads-Up
+├── recalibrer_3max.py         Recalibrage abstraction cartes 3 joueurs
+├── recalibrer_hu.py           Recalibrage abstraction cartes Heads-Up
+├── requirements.txt           Dépendances Python
+├── README.txt                 Vue d'ensemble + commandes
+├── TODO.txt                   Tâches à faire / faites
+├── CLAUDE.md                  Instructions Claude (rappel TODO)
+├── libratus.txt               Notes de référence Libratus/Pluribus
+├── ARCHITECTURE.txt           Ce fichier
+│
+├── config/
+│   └── settings.py            Hyperparamètres globaux
+│
+├── engine/                    Moteur de jeu (règles poker)
+│   ├── actions.py             Actions légales
+│   ├── card.py                Wrapper Treys pour le deck
+│   ├── hand_evaluator.py      Évaluation mains + équités Monte Carlo
+│   ├── player.py              État d'un joueur
+│   ├── blind_structure.py     Progression des blindes (tournoi)
+│   ├── game_state.py          État complet d'une main
+│   └── game.py                Boucle de jeu complète
+│
+├── abstraction/               Réduction de l'espace de jeu
+│   ├── card_abstraction.py    8 buckets d'équité (preflop + postflop)
+│   ├── action_abstraction.py  Jusqu'à 9 actions abstraites
+│   └── info_set.py            Construction des clés d'infoset
+│
+├── ai/                        Intelligence artificielle
+│   ├── agent.py               Agent AXIOM — décisions temps réel
+│   ├── mccfr.py               CFR Kuhn + External Sampling Hold'em
+│   ├── strategy.py            Sauvegarde/chargement du blueprint (pickle)
+│   ├── network.py             Réseaux PyTorch (Deep CFR)
+│   ├── trainer.py             Entraîneurs PyTorch (Adam + MSE)
+│   ├── deep_cfr.py            Orchestration Deep CFR
+│   └── reservoir.py           Reservoir Buffers (Vitter 1985)
+│
+├── interface/                 Interface graphique Pygame
+│   ├── main_window.py         Fenêtre + boucle événements
+│   ├── table.py               Rendu tapis + positions
+│   ├── card_renderer.py       Rendu cartes
+│   ├── hud.py                 HUD (blindes, pot, phase, timer)
+│   └── action_buttons.py      Boutons d'action
+│
+├── solver/                    Solveur temps réel (WIP)
+│   ├── depth_limited.py       CFR à profondeur limitée
+│   └── subgame_solver.py      Solveur de sous-jeu
+│
+├── training/                  Utilitaires d'évaluation
+│   ├── self_play.py           Simulation de parties sans GUI + adversaires
+│   ├── evaluator.py           Mesure winrate vs bots
+│   ├── evaluator_backup.py    Ancienne version (à nettoyer)
+│   └── trainer.py             (helpers)
+│
+├── tests/                     Tests unitaires pytest
+│   ├── test_engine.py
+│   ├── test_abstraction.py
+│   ├── test_mccfr.py
+│   ├── test_deep_cfr.py
+│   ├── test_agent.py
+│   └── test_hu.py
+│
+└── data/                      Fichiers générés
+    ├── strategy/              blueprint_v1.pkl, blueprint_hu.pkl
+    ├── models/                6 réseaux .pt (regret + strategy × 3 joueurs)
+    ├── buffers/               Reservoir buffers (.npz)
+    ├── checkpoints/           Checkpoints numérotés iteration_XXX/
+    └── logs/                  CSV + Excel d'entraînement et d'éval
+
+
+================================================================================
+  2. CONFIGURATION (config/settings.py)
+================================================================================
+
+  JEU
+    NB_JOUEURS            = 3          BTN, SB, BB
+    STACK_DEPART          = 500        Jetons initiaux par joueur
+    NIVEAUX_BLINDES                    8 niveaux : (10/20, 15/30, 20/40,
+                                       30/60, 40/80, 50/100, 60/120, 80/160)
+                                       → 6 mains par niveau
+
+  ABSTRACTION DES MISES
+    TAILLES_MISE_PREFLOP  = [1.0, 2.5, 3.0]               (fractions du pot)
+    TAILLES_MISE_POSTFLOP = [0.20, 0.35, 0.65, 1.0, 1.5]  (fractions du pot)
+    TAILLES_MISE          = TAILLES_MISE_POSTFLOP (défaut pour réseau)
+    NB_ACTIONS_MAX        = 9          FOLD+CHECK+CALL+5 RAISE+ALL_IN
+    ALL_IN                = True
+
+  MCCFR
+    MCCFR_ITERATIONS      = 20 000 000
+    MCCFR_SAVE_EVERY      = 100 000
+    NB_WORKERS_MAX        = 13
+
+  DEEP CFR
+    DEEP_CFR_ITERATIONS   = 500
+    DEEP_CFR_TRAVERSALS   = 3 000
+    BATCH_SIZE            = 4 096
+    LEARNING_RATE         = 3e-4
+    LR_DECAY_GLOBAL       = True       LR = LEARNING_RATE / √t
+    PERTURBATION_SIZING   = 0.08       ±8% sur les sizings en partie
+    HIDDEN_SIZE           = 256
+    NB_COUCHES            = 4
+
+  CHEMINS
+    CHEMIN_BLUEPRINT      = "data/strategy/blueprint_v1.pkl"
+    CHEMIN_BLUEPRINT_HU   = "data/strategy/blueprint_hu.pkl"
+    CHEMIN_REGRET_NET     = "data/models/regret_net.pt"
+    CHEMIN_STRATEGY_NET   = "data/models/strategy_net.pt"
+    CHEMIN_LOG            = "data/logs/training_log.csv"
+
+  INTERFACE
+    LARGEUR_FENETRE       = 1200
+    HAUTEUR_FENETRE       = 800
+    FPS                   = 60
+    TITRE_FENETRE         = "AXIOM — Texas Hold'em No Limit"
+
+================================================================================
+  3. MOTEUR DE JEU (engine/)
+================================================================================
+
+  3.1 actions.py
+  ───────────────
+  TypeAction (enum) : FOLD, CHECK, CALL, RAISE, ALL_IN
+  Action (dataclass) : (type, montant)
+
+  actions_legales(joueur, mise_a_suivre, pot, mise_min_raise) → list[Action]
+    - FOLD   si montant à payer > 0
+    - CHECK  si rien à payer
+    - CALL   si 0 < à payer < stack
+    - RAISE  si stack ≥ mise_min_raise
+    - ALL_IN toujours si stack > 0
+
+  3.2 card.py
+  ────────────
+  DeckAXIOM      (wrapper autour de treys Deck)
+    melanger(), distribuer(nb), nb_restantes()
+
+  creer_carte(valeur, couleur) → int (format treys 32 bits)
+  carte_en_texte(carte) → str ("As", "Kh", "2c", ...)
+  cartes_en_texte(list) → str
+
+  3.3 hand_evaluator.py
+  ──────────────────────
+  Singleton Treys Evaluator réutilisé partout.
+  Convention : score bas = main forte (1 = quinte royale, 7462 = pire).
+
+  score_main(cartes_joueur, board) → int
+  classe_main(score) → str
+  determiner_gagnants(joueurs_actifs, board) → list
+  calculer_equite(cartes, adversaires, board, nb_sim=1000, nb_adv=None) → float
+
+  3.4 player.py
+  ──────────────
+  StatutJoueur : ACTIF, FOLD, ALL_IN, ELIMINE
+  TypeJoueur   : HUMAIN, AXIOM
+
+  Joueur
+    nom, type, stack, cartes, statut, mise_tour, contribution_main, position
+    miser(montant), recevoir(montant), recevoir_cartes(cards)
+    reinitialiser_main(), reinitialiser_tour()
+    est_actif, est_elimine, peut_agir
+
+  3.5 blind_structure.py
+  ───────────────────────
+  StructureBlinde
+    avancer_main(), _monter_niveau()
+    petite_blinde, grande_blinde, est_dernier_niveau
+    mains_restantes_niveau, niveau_actuel
+
+  3.6 game_state.py
+  ──────────────────
+  Phase : PREFLOP, FLOP, TURN, RIVER, SHOWDOWN, TERMINEE
+
+  EtatJeu — Classe centrale de l'état d'une main
+    joueurs, pot, pots_secondaires, board
+    phase, index_actif, mise_courante, mise_min_raise
+    historique          list[(Joueur, Action)] — main entière
+    historique_phases   list[str] — par street, format MCCFR
+                        Codes : 'f', 'x', 'c', 'r{1-4}' (raise + bucket),
+                                'a' (all-in). Blindes non enregistrées.
+    deck, position_dealer
+
+    nouvelle_main(), _poster_blindes(actifs)
+    enregistrer_action(joueur, action)  Encode les raises avec bucket sizing
+    passer_phase_suivante()              PREFLOP→FLOP→TURN→RIVER
+    passer_au_suivant(), joueur_actif()
+    joueurs_non_elimines(), joueurs_actifs_dans_main(), joueurs_pouvant_agir()
+
+  3.7 game.py
+  ────────────
+  Jeu
+    lancer()            Boucle tournoi jusqu'à 1 joueur restant
+    jouer_une_main()    Joue PREFLOP→FLOP→TURN→RIVER→Showdown
+    _jouer_tour()       Gère une street complète
+    _tour_termine()     Tous ont égalisé + ont eu la chance d'agir
+    _obtenir_action()   Humain ou agent_ia selon TypeJoueur
+    _appliquer_action() Met à jour stack, pot, mise_courante
+    _resoudre_main()    Détermine gagnants et distribue les pots
+    _faire_tourner_bouton()
+
+  creer_partie(noms_humains, agent_ia) → Jeu
+
+================================================================================
+  4. ABSTRACTION DES CARTES (abstraction/card_abstraction.py)
+================================================================================
+
+  Réduit ~2.6M combinaisons possibles à 8 buckets d'équité.
+
+  PARAMÈTRES
+    NB_BUCKETS_PREFLOP   = 8
+    NB_BUCKETS_POSTFLOP  = 8
+    NB_SIMULATIONS       = 100     Monte Carlo par calcul équité postflop
+    NB_ADVERSAIRES       = 2       (mode 3-max)
+
+  SEUILS 3-MAX (calibrés via recalibrer_3max.py)
+    Preflop  : [0.273, 0.304, 0.325, 0.351, 0.379, 0.411, 0.453]
+    Postflop : [0.086, 0.154, 0.213, 0.284, 0.378, 0.508, 0.698]
+
+  SEUILS HEADS-UP (calibrés via recalibrer_hu.py)
+    Preflop  : [0.42, 0.459, 0.493, 0.526, 0.556, 0.588, 0.631]
+    Postflop : [0.24, 0.334, 0.414, 0.504, 0.592, 0.708, 0.836]
+
+  TABLES PRÉFLOP
+    _EQUITE_PREFLOP_APPROX     169 mains × équité 3-max
+    _EQUITE_PREFLOP_APPROX_HU  169 mains × équité HU
+
+  AbstractionCartes(mode='3max' | 'hu')
+    bucket_preflop(cartes) → int (0-7)
+    bucket_postflop(cartes, board) → int (0-7)   Monte Carlo interne
+    bucket(cartes, board) → int                   dispatch auto
+    bucket_et_equite(cartes, board) → (int, float)
+
+  Instances globales :
+    abstraction_cartes     (mode '3max', défaut)
+    abstraction_cartes_hu  (mode 'hu')
+
+================================================================================
+  5. ABSTRACTION DES ACTIONS (abstraction/action_abstraction.py)
+================================================================================
+
+  Réduit les mises No Limit à un jeu fini d'actions discrètes.
+
+  AbstractionAction(tailles_mise=None)
+    actions_abstraites(joueur, mise_a_suivre, pot, mise_min_raise) → list
+      FOLD, CHECK/CALL, RAISE×len(tailles_mise), ALL_IN
+      Raise = mise_a_suivre + int(pot × fraction)
+
+    nb_actions_max() → int       3 + len(tailles) + 1 = 9
+
+    index_action(action, pot=1, mise_courante=0) → int
+      0 = FOLD
+      1 = CHECK
+      2 = CALL
+      3..7 = RAISE (selon index de tailles_mise)
+      8 = ALL_IN
+      -1 si non reconnu
+
+  Instance globale : abstraction_action
+
+================================================================================
+  6. INFORMATION SET (abstraction/info_set.py)
+================================================================================
+
+  Construit la clé unique d'une situation de jeu pour MCCFR.
+
+  DISCRÉTISATION DES RAISES (bucket face-à un raise)
+    _discretiser_raise_frac(frac) → 0..4
+      0 : pas de raise (frac ≤ 0)
+      1 : micro  (0    < frac ≤ 0.33)
+      2 : small  (0.33 < frac ≤ 0.75)
+      3 : pot    (0.75 < frac ≤ 1.25)
+      4 : over   (frac > 1.25)
+
+  PALIERS DE NORMALISATION
+    POT   : [0,1,2,3,4,5,6,7,8,10,12,15,20,25,30,40,50,75,100]
+    STACK : [0,5,8,10,12,15,18,20,25,30,35,40,50,65,75,100,150,200]
+
+  _normaliser(valeur, paliers) → int (palier ≤ valeur)
+
+  FORMAT DE CLÉ
+    "PHASE|pos=X|bucket=Y|pot=Z|stacks=(a,b,c)|hist=ABC|raise=R"
+      PHASE    : PREFLOP, FLOP, TURN, RIVER
+      pos      : 0=BTN, 1=SB, 2=BB
+      bucket   : 0-7 (force de main)
+      pot_norm : normalisé par grande blinde
+      stacks   : 3 stacks normalisés
+      hist     : actions de la phase courante UNIQUEMENT
+      raise    : 0-4 (bucket raise/pot courant)
+
+  construire_cle_infoset(etat, joueur) → str
+
+================================================================================
+  7. ALGORITHME MCCFR (ai/mccfr.py)
+================================================================================
+
+  7.1 VANILLA CFR SUR KUHN POKER (validation de l'implémentation)
+  ────────────────────────────────────────────────────────────────
+  Jeu simplifié 2 joueurs : 3 cartes (J, Q, K), 2 actions (pass/bet).
+  Terminales : pp, bp, pbp, bb, pbb.
+  Valeur Nash connue : -1/18 ≈ -0.0556 pour joueur 0.
+
+  _KP_CARTES = [0,1,2], _KP_ACTIONS = ['p','b'], _KP_NB_ACTIONS = 2
+
+  CFRKUHN
+    cfr(carte_j0, carte_j1, historique, proba_j0, proba_j1) → float
+      Traversée récursive vanilla CFR exhaustive
+    entrainer(nb_iterations, verbose) → float
+    afficher_strategie()
+
+  7.2 STRUCTURE NoeudCFR (commun Kuhn + Hold'em)
+  ────────────────────────────────────────────────
+  regrets_cumules[a]    Σ regrets contrefactuels par action
+  strategie_somme[a]    Σ (proba_reach × stratégie courante)
+  nb_visites            Compteur de visites
+
+  strategie_courante(proba_reach) → list[float]
+    Regret Matching : prob[a] = max(regret[a], 0) / Σ max(regret, 0)
+    Si tous ≤ 0 : uniforme
+    Accumule dans strategie_somme
+
+  strategie_moyenne() → list[float]
+    strategie_somme normalisée → converge vers Nash
+
+  7.3 EXTERNAL SAMPLING MCCFR POUR HOLD'EM
+  ──────────────────────────────────────────
+  MCCFRHoldEm — boucle :
+    Pour chaque itération :
+      Deal aléatoire (cartes + positions)
+      Pour chaque joueur_traversant i ∈ {0,1,2} :
+        _traverser(etat, i, reach)
+          Nœud terminal   : calcul gains (pot → gagnant)
+          Nœud chance     : tirer board, récurser
+          Nœud décision joueur i :
+            Explore TOUTES les actions
+            regrets[a] = valeur[a] - valeur_espérée
+          Nœud adversaire :
+            Échantillonne 1 action selon stratégie courante
+
+  Constantes internes :
+    _H_ACTIF=0, _H_FOLD=1, _H_ALLIN=2
+    _H_PREFLOP=0, _H_FLOP=1, _H_TURN=2, _H_RIVER=3
+    _ORDRE_PREFLOP  = [0,1,2]   BTN parle en premier
+    _ORDRE_POSTFLOP = [1,2,0]   SB parle en premier
+
+  7.4 RÉPARTITION DES ITÉRATIONS PAR NIVEAU (train.py)
+  ─────────────────────────────────────────────────────
+  Niveau   | BB    | Ratio | Raison
+  10/20    | 25 BB | 22%   | Complexité max (postflop riche)
+  15/30    | 16 BB | 25%   | Pic stratégique (3-bet/squeeze)
+  20/40    | 12 BB | 20%   | Transition push/fold
+  30/60    |  8 BB | 15%   | Push/fold dominant
+  40/80    |  6 BB |  8%   | Quasi résolu rapidement
+  50/100   |  5 BB |  5%   | Push/fold pur
+  60/120   |  4 BB |  3%   | Trivial
+  80/160   |  3 BB |  2%   | Trivial (shove systématique)
+
+================================================================================
+  8. DEEP CFR (ai/deep_cfr.py)
+================================================================================
+
+  Remplace les tables MCCFR par des réseaux neuronaux → généralisation
+  + mémoire bornée.
+
+  Référence : Brown, Lerer, Gross, Sandholm — ICML 2019.
+
+  BOUCLE PAR ITÉRATION t
+  ────────────────────────
+  Pour chaque joueur i ∈ {0,1,2} (en parallèle, 3 processus) :
+    Pour k = 1..DEEP_CFR_TRAVERSALS :
+      deal = tirage_aleatoire()
+      _traverser(deal, joueur=i, reseau_regret_i)
+        - Nœud joueur i :
+            strategie = regret_matching(reseau_regret_i(infoset_vec))
+            Pour chaque action a : valeur[a] = récurser
+            regret_inst[a] = valeur[a] - Σ strategie·valeur
+            buffer_regret_i.ajouter(infoset_vec, regret_inst, nb_actions)
+            buffer_strategie_i.ajouter(infoset_vec, strategie, t)
+        - Nœud adversaire j≠i :
+            strategie = regret_matching(reseau_regret_j(infoset_vec))
+            action = échantillonner(strategie)
+            (ne stocke RIEN — correction Phase 11)
+
+  Processus principal :
+    Entraîner reseau_regret_i    (NB_BATCHS_PAR_EPOCH = 300 batchs)
+    Entraîner reseau_strategie_i (300 batchs)
+    Sauvegarder data/models/*.pt + data/checkpoints/iteration_XXX/
+    Sauvegarder buffers .npz (écriture atomique via .tmp)
+
+  Constantes internes :
+    _H_PREFLOP/FLOP/TURN/RIVER, _ORDRE_PREFLOP/POSTFLOP (comme MCCFR)
+    _rng_thread() : RNG thread-local pour traversées parallèles
+
+  NOTE SUR LE LR (Phase 10)
+    Le LR est RÉINITIALISÉ à 3e-4 avant chaque itération Deep CFR.
+    Sinon ReduceLROnPlateau le réduirait indéfiniment, les regrets
+    cibles changeant à chaque itération.
+
+================================================================================
+  9. RÉSEAUX NEURONAUX (ai/network.py)
+================================================================================
+
+  ARCHITECTURE GÉNÉRALE
+  ──────────────────────
+    Entrée  : float32[DIM_INPUT = 52]
+    ↓
+    4 couches cachées [Linear(256) + LayerNorm + ReLU + Dropout(0.05)]
+    connexions résiduelles (pre-norm)
+    ↓
+    Sortie  : NB_ACTIONS_MAX = 9 logits/probas
+
+  ENCODAGE DE L'INFOSET (52 dimensions)
+  ──────────────────────────────────────
+  [0:4]    PHASE                   one-hot (PREFLOP/FLOP/TURN/RIVER)
+  [4:7]    POSITION                one-hot (BTN/SB/BB)
+  [7:11]   CARD TEXTURE            [équité, nut_advantage, draw_pot, eq_preflop]
+  [11]     POT                     log(1 + pot / GB)
+  [12:15]  STACKS                  log(1 + stack_i / GB) × 3
+  [15]     OOP BIT                 1.0 si SB (OOP structurelle)
+  [16:48]  HISTORIQUE              4 phases × 8 actions [f,x,c,a,r1,r2,r3,r4]
+  [48:52]  RAISE_FRAC              one-hot bucket raise/pot courant (0-4)
+
+  TROIS RÉSEAUX
+  ──────────────
+  ReseauRegret    f_θ(infoset) → regrets[9]        (non borné, régression MSE)
+  ReseauStrategie g_φ(infoset) → probas[9]         (softmax, somme=1)
+  ReseauValeur    h_ψ(infoset) → valeur[1]         (optionnel — pour solver)
+
+  DÉTECTION DU DEVICE
+  ────────────────────
+  detecter_device() → torch.device
+    1) CUDA (GPU NVIDIA)
+    2) MPS (Apple Silicon)
+    3) CPU (fallback)
+  DEVICE = variable globale initialisée une seule fois
+
+================================================================================
+  10. RESERVOIR BUFFERS (ai/reservoir.py)
+================================================================================
+
+  Reservoir Sampling (Vitter 1985) :
+    Le k-ième échantillon s'insère avec probabilité N/k (N = taille buffer).
+    Garantit un échantillon uniforme de TOUS les échantillons vus.
+
+  CLASSES
+    ReservoirBufferRegret     (infoset_vec, regrets[NB_ACTIONS], nb_actions)
+    ReservoirBufferStrategie  (infoset_vec, strategie[NB_ACTIONS], iteration)
+    ReservoirBufferValeur     (infoset_vec, valeur_estimee[1])
+
+  TAILLE_BUFFER_DEFAUT = 3 000 000 slots (~336 Mo / buffer)
+
+  Méthodes :
+    ajouter(infoset_vec, data, ...)     Insertion reservoir sampling
+    tirer_batch(nb) → (vecs, targets)   Mini-batch aléatoire
+    sauvegarder/charger .npz (atomique via .tmp + rename)
+
+================================================================================
+  11. ENTRAÎNEUR PYTORCH (ai/trainer.py)
+================================================================================
+
+  EntraineurRegret
+    Perte MSE non pondérée ; masque des actions illégales.
+
+  EntraineurStrategie
+    Perte MSE pondérée linéairement par l'itération t :
+      L = (1/B) Σ t × || g_φ(I) − σ_t(I) ||²
+    (Linear CFR → les stratégies récentes pèsent plus).
+
+  OPTIMISATION
+    Adam (lr, weight_decay=1e-5)
+    Scheduler ReduceLROnPlateau (patience=5, factor=0.5)
+    Gradient clipping : max_norm = 1.0
+    NB_BATCHS_PAR_EPOCH = 300
+
+  BOUCLE
+    Pour chaque epoch :
+      Pour i = 1..300 :
+        Tirer mini-batch du buffer
+        Forward → loss → backward → clip → step
+
+================================================================================
+  12. STRATÉGIE & BLUEPRINT (ai/strategy.py)
+================================================================================
+
+  sauvegarder_blueprint(noeuds, chemin) → None
+    Sérialise dict {cle → NoeudCFR} en pickle.
+
+  charger_blueprint(chemin) → dict
+    Désérialise (FileNotFoundError si absent).
+
+  obtenir_strategie(noeuds, cle) → list | None
+    Retourne noeud.strategie_moyenne().
+
+  afficher_stats_blueprint(noeuds)
+    Stats par phase + top 5 infosets les plus visités.
+
+================================================================================
+  13. AGENT AXIOM (ai/agent.py)
+================================================================================
+
+  ARCHITECTURE DE PRIORITÉ DES DÉCISIONS
+  ────────────────────────────────────────
+  1. Compter les joueurs non éliminés
+     ├─ 2 joueurs → mode Heads-Up
+     │    ├─ Blueprint HU (lookup O(1))
+     │    ├─ Deep CFR (forward pass)
+     │    └─ Heuristique
+     │
+     └─ 3 joueurs → mode Standard
+          ├─ Blueprint 3J (lookup O(1))
+          ├─ Deep CFR (forward pass)
+          └─ Heuristique
+
+  2. Obtenir distribution sur les 9 actions abstraites
+  3. Mapper abstrait → légal concret
+  4. Argmax (déterministe) ou échantillonnage (stochastique)
+  5. Appliquer perturbation de sizing ±PERTURBATION_SIZING
+
+  FORMAT CLÉ HU
+    "HU_PREFLOP|pos=P|bucket=B|pot=N|stacks=(A,B)|hist=H"
+    Préfixe "HU_" pour éviter collision avec clés 3-max.
+
+  FLUX choisir_action(etat, joueur, legales) → Action
+    1. Construire infoset_vec via encoder_infoset()
+    2. Consulter blueprint approprié (HU ou 3J)
+    3. Si absent : appel Deep CFR
+    4. Si pb : fallback heuristique
+    5. Mapper sur actions légales + renormaliser
+    6. Perturber sizings, puis choisir
+    7. Incrémenter StatsSource
+
+  creer_agent(chemin_blueprint, chemin_blueprint_hu, verbose) → AgentAXIOM
+    Charge blueprint HU/3J + 3 réseaux strategy_net_j*.pt si disponibles.
+
+================================================================================
+  14. INTERFACE GRAPHIQUE (interface/)
+================================================================================
+
+  14.1 main_window.py
+  ────────────────────
+  FenetrePrincipale (Pygame 60 FPS)
+    États : MENU, PARTIE, TOUR_HUMAIN, TOUR_IA, SHOWDOWN, FIN_MAIN, FIN_PARTIE
+    Délais :
+      DELAI_ACTION_IA_MS    = 900
+      DELAI_SHOWDOWN_MS     = 3200
+      DELAI_ENTRE_MAINS_MS  = 1800
+      DUREE_TIMER_HUMAIN    = 30.0 s
+    Clavier humain : F=FOLD, X=CHECK, C=CALL, A=ALL-IN, R=RAISE
+
+    lancer(etat_jeu, agent, structure_blinde, index_humain)
+
+  14.2 table.py
+  ──────────────
+  Palette :
+    COULEUR_FOND=(15,20,30), COULEUR_TAPIS=(25,90,50)
+    COULEUR_HUMAIN=(220,180,80), COULEUR_AXIOM=(80,160,255)
+    COULEUR_FOLD, COULEUR_ALLIN, COULEUR_POT, COULEUR_DEALER
+
+  Positions 3 joueurs :
+    Pos 0 (BTN, humain)    : (50%, 76%)
+    Pos 1 (SB, AXIOM-1)    : (18%, 28%)
+    Pos 2 (BB, AXIOM-2)    : (82%, 28%)
+
+  RenduTable : tapis + rails + joueurs + halo pulsant sur joueur actif.
+
+  14.3 hud.py
+  ────────────
+  Pot central, phase colorée, niveau blindes, timer humain,
+  historique des 10 dernières actions.
+
+  14.4 card_renderer.py, action_buttons.py
+  ─────────────────────────────────────────
+  Rendu des cartes (face + dos), boutons d'action dynamiques
+  (seules les actions légales sont affichées).
+
+================================================================================
+  15. ÉVALUATION & SELF-PLAY (training/)
+================================================================================
+
+  15.1 self_play.py
+  ──────────────────
+  Adversaires disponibles :
+    AgentAleatoire    action au hasard
+    AgentCallOnly     call systématique
+    AgentRaiseOnly    raise max
+    AgentTAG          Tight Aggressive — range sélective, agressif postflop
+    AgentLAG          Loose Aggressive — large range, bluffeur
+    AgentRegulier     régulier casino
+
+  MoteurSelfPlay
+    simuler(joueurs, nb_mains, verbose) → ResultatPartie
+      Retourne gains_nets, nb_mains, historique
+
+  15.2 evaluator.py
+  ──────────────────
+  Evaluateur
+    evaluer(agent, nb_mains) → RapportEvaluation
+      Mesure winrate (bb/100) par position vs chaque adversaire.
+
+  RapportEvaluation
+    winrate_vs_{aleatoire,call,raise,tag,lag,regulier}
+    winrate_moyen (6 scénarios), winrate_moyen_semipro (3 scénarios)
+    stats_source (par scénario)
+
+  StatsSource
+    % blueprint HU, blueprint 3J, Deep CFR, heuristique
+    total_decisions
+
+  15.3 evaluator_backup.py
+  ─────────────────────────
+  Ancienne version — à nettoyer (voir TODO.txt).
+
+================================================================================
+  16. SOLVER TEMPS RÉEL (solver/ — WIP)
+================================================================================
+
+  16.1 depth_limited.py  (~1040 lignes — WIP)
+  ────────────────────────────────────────────
+  Solveur à profondeur limitée inspiré de Pluribus (2019).
+
+  PRINCIPE
+    Pendant la partie, au lieu de simple lookup blueprint, lancer un
+    mini-CFR local à partir de l'état courant.
+
+  PARAMÈTRES
+    profondeur  : nb de streets à explorer avant oracle
+    temps_max   : budget temps réel
+
+  ALGORITHME
+    Pour chaque itération :
+      Compléter board (Monte Carlo cartes cachées)
+      Lancer ES-MCCFR local :
+        - Joueur AXIOM : explore toutes actions
+        - Adversaire   : échantillonne 1 action selon blueprint
+        - Chance       : distribuir carte ou arrêter
+        - Feuille      : évaluer via oracle (blueprint / Deep CFR)
+      Accumuler regrets à la racine
+    Regret matching final → stratégie raffinée
+
+  16.2 subgame_solver.py  (~560 lignes — WIP)
+  ────────────────────────────────────────────
+  Solveur de sous-jeu complet (résolution à partir d'un nœud interne).
+
+  STATUT : Les deux fichiers existent mais ne sont pas finalisés ni
+  intégrés à l'agent (voir TODO.txt — priorité P2).
+
+================================================================================
+  17. SCRIPTS RACINE
+================================================================================
+
+  17.1 main.py — Partie GUI
+  ──────────────────────────
+  python main.py
+  python main.py --nom "Alice"
+  python main.py --mode stochastique | deterministe
+  python main.py --blueprint data/strategy/blueprint_v1.pkl
+
+  Flux :
+    1. Vérifier dépendances (pygame, torch, numpy, treys)
+    2. Importer modules AXIOM
+    3. Créer joueurs (1 humain + 2 AXIOM)
+    4. Charger agent (blueprint + Deep CFR)
+    5. Lancer FenetrePrincipale
+
+  17.2 train.py — Entraînement 3 joueurs
+  ────────────────────────────────────────
+  python train.py                              Entraînement complet
+  python train.py --mode mccfr                 MCCFR seul
+  python train.py --mode mccfr --iterations N
+  python train.py --mode deepcfr               Deep CFR seul
+  python train.py --mode deepcfr --deep-iterations N
+  python train.py --mode deepcfr --traversees N
+  python train.py --mode eval                  Évaluation complète
+  python train.py --mode eval-checkpoint       Dernier checkpoint → Excel
+  python train.py --mode bench                 Benchmark rapide 100 mains
+  python train.py --workers 8
+
+  Multiprocessing MCCFR :
+    15 workers CPU (ou NB_WORKERS_MAX), _fusionner_noeuds() via mp.Queue
+    Somme des regrets/stratégies entre workers, puis sauvegarde blueprint.
+
+  Multiprocessing Deep CFR :
+    3 processus parallèles (1 par joueur) pour les traversées,
+    puis entraînement réseau côté processus principal.
+
+  Reprise sur checkpoint :
+    Scanne data/checkpoints/ → iteration_XXX maximal
+    Charge .pt dans data/models/, init dcfr.iteration = XXX
+    Recharge les buffers depuis data/buffers/.
+
+  17.3 train_hu.py — Entraînement Heads-Up
+  ──────────────────────────────────────────
+  python train_hu.py
+  python train_hu.py --iterations 75000
+  python train_hu.py --workers 15
+  python train_hu.py --from-scratch
+  python train_hu.py --chemin data/strategy/blueprint_hu.pkl
+  python train_hu.py --verbose | --no-verbose
+
+  Adapte MCCFR à 2 joueurs :
+    Clés "HU_PREFLOP|pos=P|bucket=B|pot=N|stacks=(A,B)|hist=H"
+    Préflop : BTN/SB agit en premier (position 0)
+    Postflop : BB agit en premier (position 1)
+
+  17.4 recalibrer_3max.py / recalibrer_hu.py
+  ───────────────────────────────────────────
+  Recalibrage des buckets d'abstraction.
+
+  Processus :
+    1. Équités préflop pour les 169 mains vs N adversaires (3000 sims)
+    2. Échantillonnage de 4000 situations postflop (flop/turn/river mix)
+    3. Équité MC par situation (500 sims)
+    4. Percentiles [12.5%, 25%, ..., 87.5%] → 7 seuils
+    5. Génère SEUILS_BUCKETS_PREFLOP et SEUILS_BUCKETS_POSTFLOP
+
+  À relancer uniquement si on modifie le nb de joueurs ou la logique de bucket.
+  Produit : recalibrage_3max_resultats.txt / recalibrage_hu_resultats.txt
+
+================================================================================
+  18. TESTS (tests/)
+================================================================================
+
+  test_engine.py       (~185 l) Deck, eval, actions, blindes, EtatJeu, game
+  test_abstraction.py  (~342 l) Action abstraction, card abstraction, infoset
+  test_mccfr.py        (~1040 l) Vanilla CFR Kuhn (convergence -1/18)
+                                 + MCCFR Hold'em 3-max, ES, regret matching
+  test_deep_cfr.py     (~620 l) Entraînement réseaux, buffers, encodage
+  test_agent.py        (~540 l) Blueprint, choisir_action, mapping
+  test_hu.py           (~400 l) MCCFRHeadsUp, clés HU, stratégie
+
+  python -m pytest tests/              # Tout
+  python -m pytest tests/test_mccfr.py # Un seul module
+  python -m pytest -v                  # Verbose
+
+================================================================================
+  19. FLUX GLOBAL DU SYSTÈME
+================================================================================
+
+  ENTRAÎNEMENT
+  ─────────────
+  train.py
+    ├─ Phase 1 : MCCFR (workers CPU)
+    │    Niveau 1 (10/20, 22%) ──┐
+    │    Niveau 2 (15/30, 25%) ──┤  _fusionner_noeuds()
+    │    ...                     ├──► data/strategy/blueprint_v1.pkl
+    │    Niveau 8 (80/160, 2%) ──┘
+    │
+    └─ Phase 2 : Deep CFR (3 processus parallèles)
+         Itération 1..500
+           ├─ Worker J0 : 3000 traversées → échantillons
+           ├─ Worker J1 : 3000 traversées → (parallèle)
+           ├─ Worker J2 : 3000 traversées → (parallèle)
+           ├─ Reservoir Buffers ← insertion
+           ├─ EntraineurRegret[0,1,2]    : 300 batchs × 4096
+           ├─ EntraineurStrategie[0,1,2] : 300 batchs × 4096
+           └─ Sauvegarde : data/models/*.pt + iteration_XXX/
+
+  train_hu.py
+    └─ Boucle identique, adaptée 2 joueurs → blueprint_hu.pkl
+
+  EXÉCUTION EN PARTIE
+  ────────────────────
+  main.py
+    └─ FenetrePrincipale.lancer()
+         └─ Boucle tournoi (Jeu)
+              └─ Boucle main
+                   └─ Pour chaque street (PREFLOP→FLOP→TURN→RIVER) :
+                        Pour chaque joueur actif :
+                          HUMAIN : clavier / souris → Action
+                          AXIOM  : agent.choisir_action(...)
+                            ├─ construire_cle_infoset()
+                            ├─ Blueprint HU/3J → strategie[9]
+                            ├─ OU Deep CFR forward pass
+                            ├─ OU heuristique
+                            ├─ mapper_sur_legales()
+                            └─ perturber + choisir → Action
+
+================================================================================
+  POINTS TECHNIQUES CLÉS
+================================================================================
+
+  • Historique compatible MCCFR : enregistrement PAR STREET avec bucket de
+    raise (r1..r4). Les blindes ne sont pas loggées.
+
+  • Split des tailles de mise : préflop (3) ≠ postflop (5). MCCFR applique
+    les tailles correctes selon la street.
+
+  • Correction Phase 11 : adversaires n'alimentent plus les buffers Deep CFR.
+    Évite la dilution du signal d'entraînement.
+
+  • Correction Phase 10 : LR réinitialisé à 3e-4 entre itérations Deep CFR
+    (sinon ReduceLROnPlateau le ferait décroître à l'infini).
+
+  • Dual blueprint : HU et 3J cohabitent via préfixe "HU_" dans les clés.
+    L'agent bascule automatiquement selon le nombre de joueurs restants.
+
+  • Écriture atomique : tous les .pkl / .pt / .npz sont écrits en .tmp
+    puis renommés — incorruptible en cas d'interruption.
+
+================================================================================
+  DÉPENDANCES (requirements.txt)
+================================================================================
+
+  treys>=0.1.8         Évaluation des mains (encodage treys 32 bits)
+  pygame>=2.6.0        Interface graphique
+  torch>=2.0.0         Deep Learning (Deep CFR)
+  torchvision>=0.15.0  Requis par torch
+  numpy>=1.24.0        Calcul numérique + buffers
+  tqdm>=4.65.0         Barres de progression
+  openpyxl>=3.1.0      Export Excel des évaluations
+
+================================================================================
+  RÉFÉRENCES ACADÉMIQUES
+================================================================================
+
+  - Zinkevich et al. (2007), "Regret Minimization in Games with Incomplete
+    Information"                                                   (CFR original)
+  - Tammelin (2014), "Solving Large Imperfect Information Games using CFR+"
+  - Brown & Sandholm (2017), "Libratus: The Superhuman AI for No-Limit Poker"
+  - Brown, Lerer, Gross, Sandholm (2019), "Deep Counterfactual Regret
+    Minimization"                                                   (ICML 2019)
+  - Brown & Sandholm (2019), "Superhuman AI for multiplayer poker" — Pluribus
+
+================================================================================
+  FIN DE DOCUMENTATION
+================================================================================

@@ -1,0 +1,206 @@
+================================================================================
+  AXIOM — PLAN D'ACTION (ordre chronologique)
+================================================================================
+
+  Ce document liste, dans l'ordre, tout ce qu'il reste à faire sur AXIOM.
+  Chaque étape dépend de la précédente — ne pas sauter d'étape.
+
+  État actuel (2026-04-18) :
+    - Infra Continuation Strategies k=4 : PRÊTE (code + tests validés)
+    - Blueprint baseline (blueprint_v1.pkl)    : existant
+    - Blueprint HU      (blueprint_hu.pkl)     : existant
+    - Blueprints biaisés (fold/call/raise)     : À ENTRAÎNER
+
+================================================================================
+  ÉTAPE 1 — ENTRAÎNER LES 3 BLUEPRINTS BIAISÉS (P2)
+================================================================================
+
+  Objectif : produire blueprint_v1_fold.pkl, blueprint_v1_call.pkl,
+             blueprint_v1_raise.pkl → permet à AXIOM de mixer 4 stratégies
+             au runtime (Continuation Strategies Pluribus, k=4).
+
+  Durée estimée : ~48h par entraînement.
+                  - Séquentiel : ~6 jours wall-clock
+                  - Parallèle (3 process simultanés) : ~2 jours
+                    Nécessite assez de cœurs CPU (vérifier config/settings.py
+                    pour le nombre de workers par entraînement).
+
+  COMMANDES (à lancer dans C:\Users\matth\Desktop\axiom) :
+
+    python train.py --mode mccfr --biais fold  --biais-alpha 0.05
+    python train.py --mode mccfr --biais call  --biais-alpha 0.05
+    python train.py --mode mccfr --biais raise --biais-alpha 0.05
+
+  Sortie attendue dans data/strategy/ :
+    - blueprint_v1_fold.pkl
+    - blueprint_v1_call.pkl
+    - blueprint_v1_raise.pkl
+
+  CONSEILS :
+    - Lancer chaque entraînement dans un terminal séparé (screen/tmux si
+      tu veux pouvoir fermer la session sans tuer le process).
+    - Vérifier que blueprint_v1.pkl (baseline) n'est PAS écrasé — le flag
+      --biais ajoute le suffixe au nom de sortie.
+    - Surveiller la RAM : un entraînement biaisé consomme autant que le
+      baseline (~1-2 Go typiquement).
+    - Checkpoints automatiques tous les N itérations (voir --save-every
+      dans train.py) → si un process crashe, on peut reprendre.
+
+  VÉRIFICATION après chaque entraînement :
+    - Le fichier .pkl doit faire une taille similaire à blueprint_v1.pkl.
+    - Ouvrir un Python et charger le blueprint pour s'assurer qu'il n'est
+      pas corrompu :
+
+        import pickle
+        with open('data/strategy/blueprint_v1_fold.pkl', 'rb') as f:
+            bp = pickle.load(f)
+        print(len(bp), 'infosets')   # doit être du même ordre que baseline
+
+
+================================================================================
+  ÉTAPE 2 — ÉVALUER LE GAIN DES CONTINUATION STRATEGIES
+================================================================================
+
+  Objectif : mesurer si AXIOM (k=4 variantes) > AXIOM (baseline seul).
+             Décide si les étapes 3-4 valent le coup.
+
+  Durée estimée : quelques heures (selon nb de mains).
+
+  MÉTHODE :
+    1. Évaluer l'agent AVEC les 4 variantes chargées
+       (screen/jouer.py les charge déjà automatiquement via
+        charger_blueprints_continuations).
+
+    2. Évaluer l'agent SANS (baseline seul) — modifier temporairement
+       jouer.py ou créer un script dédié qui n'appelle pas
+       charger_blueprints_continuations.
+
+    3. Comparer les winrates (bb/100) sur un échantillon statistiquement
+       significatif (≥ 10 000 mains).
+
+  COMMANDES SUGGÉRÉES :
+    python train.py --mode eval                    # benchmark standard
+    (voir training/evaluator.py pour les options)
+
+  CRITÈRE DE DÉCISION :
+    - Si gain > +3 bb/100 avec k=4 → succès, passer à l'étape 3.
+    - Si gain marginal ou nul → passer directement à l'étape 3 (abstraction
+      fine), car ça deviendra le levier d'amélioration principal.
+
+
+================================================================================
+  ÉTAPE 3 — ABSTRACTION POSTFLOP PLUS FINE (P3)
+================================================================================
+
+  Objectif : passer de 8 buckets postflop à 20 ou 50 buckets sur turn/river
+             pour mieux distinguer les mains de même équité mais de potentiel
+             différent (flush draw vs paire moyenne, top pair vs middle pair,
+             etc.).
+
+  Durée estimée : 1 à 3 semaines de calcul + quelques jours de dev/recalibrage.
+
+  PRÉREQUIS :
+    - Étape 1 et 2 TERMINÉES.
+    - Décision prise d'y aller (gain attendu significatif, au prix d'un
+      réentraînement complet).
+
+  PLAN DÉTAILLÉ :
+
+    3.1. RECALIBRAGE DES CLUSTERS D'ÉQUITÉ
+         - Rééchantillonner un grand nombre de situations postflop
+           (~100 000 mains × board).
+         - Recalculer les percentiles d'équité pour découper en 20 (ou 50)
+           buckets équilibrés par phase (flop/turn/river).
+         - Voir recalibrage_hu_resultats.txt et recalibrage_3max_resultats.txt
+           pour la méthode utilisée sur 8 buckets.
+
+    3.2. MISE À JOUR DE L'ABSTRACTION
+         Fichier : abstraction/card_abstraction.py
+         - Augmenter NB_BUCKETS de 8 à 20 (ou 50).
+         - Régénérer les tables de lookup (persistées dans data/abstraction/).
+
+    3.3. RÉENTRAÎNEMENT COMPLET
+         - Le blueprint baseline DOIT être réentraîné (les anciennes clés
+           d'infoset deviennent invalides).
+         - Les 4 variantes (baseline + 3 biaisés) doivent toutes être
+           réentraînées.
+         - Prévoir ~1 semaine × 4 variantes = plusieurs semaines total,
+           SAUF si on a assez de cœurs pour paralléliser.
+
+    3.4. VÉRIFICATION DE LA TAILLE MÉMOIRE
+         - 347k infosets × (20/8) ≈ 870k infosets avec 20 buckets.
+         - 347k × (50/8) ≈ 2.2M infosets avec 50 buckets.
+         - Tester d'abord avec 20 buckets (conservateur) avant de passer à 50.
+
+    3.5. ÉVALUATION FINALE
+         - Comparer winrate bb/100 AVANT (8 buckets) vs APRÈS (20 buckets).
+         - Mesurer aussi le gain spécifique en SB OOP (voir étape 4) :
+           cette amélioration pourrait résoudre partiellement le P3 suivant.
+
+
+================================================================================
+  ÉTAPE 4 — AMÉLIORER SB OUT-OF-POSITION (P3)
+================================================================================
+
+  Objectif : réduire la perte en Small Blind HU (actuellement -15 à -30 bb/100,
+             cible ~-5 à -10 bb/100 contre un GTO de référence).
+
+  IMPORTANT : en Heads-Up, le SB est STRUCTURELLEMENT perdant. L'objectif
+              n'est PAS de gagner en SB, mais de perdre moins.
+
+  PRÉREQUIS :
+    - Étape 3 TERMINÉE (l'abstraction fine résout souvent partiellement
+      le problème SB par effet de bord).
+    - Si le gain de l'étape 3 ramène SB à -10 bb/100 ou mieux → cette
+      étape devient inutile, on s'arrête là.
+
+  PISTES À EXPLORER (dans l'ordre de simplicité) :
+
+    4.1. SAMPLING PONDÉRÉ MCCFR EN FAVEUR DU SB
+         - Modifier train.py pour échantillonner plus souvent les
+           trajectoires où AXIOM est en SB (ex: 2× plus que BTN).
+         - Réentraîner un blueprint HU dédié. ~1 semaine.
+
+    4.2. FINE-TUNING DEEP CFR SUR TRAJECTOIRES SB UNIQUEMENT
+         - Entraîner un réseau regret/strategy dédié au SB après le
+           blueprint général.
+         - Gain attendu : marginal mais mesurable.
+
+    4.3. SUBGAME SOLVING RIVIÈRE RENFORCÉ EN SB
+         - Augmenter nb_iterations du solveur de sous-jeu quand AXIOM
+           est en SB à la rivière (moment où l'écart est le plus gros).
+         - Déjà en place via activer_solveur() dans jouer.py — il faut
+           juste conditionner profondeur/temps_max sur la position.
+
+  CRITÈRE D'ARRÊT :
+    - Si SB perd moins de -10 bb/100 → objectif atteint, on arrête.
+    - Sinon, itérer sur les pistes dans l'ordre.
+
+
+================================================================================
+  RÉCAPITULATIF COURT
+================================================================================
+
+  [ ] ÉTAPE 1 — Lancer les 3 entraînements biaisés (~2-6 jours)
+                → python train.py --mode mccfr --biais {fold,call,raise}
+                                  --biais-alpha 0.05
+
+  [ ] ÉTAPE 2 — Évaluer le gain k=4 vs baseline (quelques heures)
+
+  [ ] ÉTAPE 3 — Abstraction postflop 20/50 buckets (plusieurs semaines)
+                → recalibrage + modif abstraction + réentraînement complet
+
+  [ ] ÉTAPE 4 — Améliorer SB OOP (conditionnel, si étape 3 ne suffit pas)
+
+
+================================================================================
+  NOTES FINALES
+================================================================================
+
+  - TODO.txt reste le journal des modifications (À FAIRE / FAIT / NOTES).
+  - Ce document (PLAN_ACTION.txt) est le plan stratégique ordonné.
+  - Après chaque étape terminée, mettre à jour TODO.txt ET cocher ici.
+  - Si une idée émerge en cours de route, l'ajouter à la section
+    "NOTES / IDÉES" de TODO.txt sans perturber ce plan.
+
+================================================================================
