@@ -219,3 +219,21 @@ def test_train_hu_cle_infoset_aligne():
         assert v in PALIERS_STACK_SPIN_RUSH, (
             f"Stack HU {v} pas dans PALIERS_STACK_SPIN_RUSH={PALIERS_STACK_SPIN_RUSH}"
         )
+
+
+# =============================================================================
+# RED.12 — Cardinalité hist < 2500 après MCCFR random play (matche calcul §7)
+# =============================================================================
+
+def test_cardinalite_hist_random_play_inferieure_2500():
+    """Après 2K iter MCCFR, le segment hist doit avoir < 2500 valeurs uniques.
+       Anti-régression : si dépassé en P7.5, tighten cap=4 ou itérer mapping
+       (pas de relâchement du seuil — anti-TDD)."""
+    from ai.mccfr import MCCFRHoldEm
+    trainer = MCCFRHoldEm()
+    trainer.entrainer(nb_iterations=2000, verbose=False, save_every=0)
+    hists = set()
+    for cle in trainer.noeuds.keys():
+        seg_hist = cle.split('|')[5]    # "hist=..."
+        hists.add(seg_hist[len('hist='):])
+    assert len(hists) < 2500, f"Cardinalité hist = {len(hists)} (>= 2500)"
