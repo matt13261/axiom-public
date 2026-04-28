@@ -158,6 +158,9 @@ PALIERS_STACK = [
     0, 5, 8, 10, 12, 15, 18, 20, 25, 30, 35, 40, 50, 65, 75, 100, 150, 200
 ]
 
+# Paliers Spin & Rush — 7 niveaux (P3/P5/P10/P15/P22/P30/P50) — voir P7 spec
+PALIERS_STACK_SPIN_RUSH = []
+
 
 def _normaliser(valeur: float, paliers: list) -> int:
     """

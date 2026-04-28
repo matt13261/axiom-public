@@ -65,3 +65,14 @@ def test_format_hist_inferieur_cap_inchange():
     assert _format_hist_avec_cap('xr2r3c') == 'xrMrLc'
     # hist vide reste vide
     assert _format_hist_avec_cap('') == ''
+
+
+# =============================================================================
+# RED.6 — PALIERS_STACK_SPIN_RUSH : 7 niveaux exacts
+# =============================================================================
+
+def test_paliers_stack_spin_rush_7_niveaux():
+    """Constante PALIERS_STACK_SPIN_RUSH = [0, 5, 8, 13, 19, 27, 41]."""
+    from abstraction.info_set import PALIERS_STACK_SPIN_RUSH
+    assert PALIERS_STACK_SPIN_RUSH == [0, 5, 8, 13, 19, 27, 41]
+    assert len(PALIERS_STACK_SPIN_RUSH) == 7
