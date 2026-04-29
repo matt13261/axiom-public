@@ -27,7 +27,8 @@ Implémenter et valider l'abstraction cartes V2 (E[HS²] + Potentiel + K-means 3
 - [x] P7.3.bis : tag `pre-p7` posé sur `edefa7f` ✅
 - [x] P7.4 : implémentation 6 fichiers, cap=4, 207/207 GREEN ✅
 - [x] **P7.5 : saturation curve validée (α=0.667, ratio<60 dès 50K)** ✅ 2026-04-29
-- [ ] **P7.6 : pilot cloud 500K iter (validation projection, ~3-4€)** ← NEXT
+- [x] **P7.6 : pilot cloud 500K — ratio 4.53 (mieux que prédit 6.0), 1.80€** ✅ 2026-04-29
+- [ ] **P7.7 : pilot cloud 5M iter (~10€, ETA 6-8h)** ← NEXT
 - [ ] P7.7 : pilot 5M cloud (~10€)
 - [ ] P7.8 : validation winrates + merge
 
