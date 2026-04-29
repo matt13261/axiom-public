@@ -11,14 +11,25 @@ Implémenter et valider l'abstraction cartes V2 (E[HS²] + Potentiel + K-means 3
 - [x] Spec P6 finalisée ✅ 2026-04-26
 
 ## Phase 2 — Abstraction V2 (14 jours)
-- [ ] Étape A : stubs AbstractionCartesV2 + card_clustering
-- [ ] Étape B : 14 tests RED
-- [ ] Étape C : implémentation card_clustering.py
-- [ ] Étape D : implémentation AbstractionCartesV2
-- [ ] Étape E : calibration cloud → centroides_v2.npz
-- [ ] Étape F : bascule modules vers V2
-- [ ] Étape G : ré-entraînement blueprint MCCFR (cloud, 37€)
+- [x] Étape A : stubs AbstractionCartesV2 + card_clustering ✅
+- [x] Étape B : 14 tests RED ✅
+- [x] Étape C : implémentation card_clustering.py ✅
+- [x] Étape D : implémentation AbstractionCartesV2 ✅
+- [x] Étape E : calibration cloud → centroides_v2.npz ✅
+- [x] Étape F : bascule modules vers V2 ✅
+- [x] Étape G : ré-entraînement blueprint MCCFR (cloud, 37€) — partiel, voir P7
 - [ ] Étape H : validation 3×6×1000 mains + merge
+
+## Phase P7 — Refonte abstraction hist + stacks (Spin & Rush)
+- [x] P7.1 : analyse code existant ✅
+- [x] P7.2 : spec écrite + amendements (Variante B mapping) ✅
+- [x] P7.3 : 15 tests RED (12 RED + 3 GUARDRAIL) ✅
+- [x] P7.3.bis : tag `pre-p7` posé sur `edefa7f` ✅
+- [x] P7.4 : implémentation 6 fichiers, cap=4, 207/207 GREEN ✅
+- [x] **P7.5 : saturation curve validée (α=0.667, ratio<60 dès 50K)** ✅ 2026-04-29
+- [ ] **P7.6 : pilot cloud 500K iter (validation projection, ~3-4€)** ← NEXT
+- [ ] P7.7 : pilot 5M cloud (~10€)
+- [ ] P7.8 : validation winrates + merge
 
 ## Important
 - [ ] Créer compte Google Cloud (guide disponible : docs/journal/done/2026-04-25.md)
