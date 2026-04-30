@@ -17,24 +17,6 @@ Avant tout ajout d'un fichier potentiellement sensible, vérifier que la
 liste d'exclusion de `scripts/sync_public.sh` le couvre.
 
 
-## Cloud training — règles obligatoires
-
-**Tout lancement de training cloud DOIT se faire dans une session tmux nommée.**
-
-Convention :
-```bash
-tmux new-session -d -s p7_training "cd /opt/axiom && python scripts/cloud_train_p7/train_cloud.py [args] 2>&1 | tee log_$(date +%Y%m%d_%H%M%S).log"
-```
-
-Bénéfices :
-- Le training survit aux pannes SSH/réseau VM (cf. incident P7.7 — `ens4` DHCP perdu, SSH inaccessible 5h, mais le process aurait continué dans tmux et serait récupérable post-restart sans relance).
-- L'utilisateur peut faire `tmux attach -t <session>` depuis SSH pour voir l'état temps réel.
-- Convention de nommage uniforme pour identifier la session : `<phase>_<type>` (ex `p7_training`, `p8_eval`).
-
-**Le rapport cloud final doit mentionner explicitement le nom de la session tmux utilisée.**
-
-S'applique à : tous les runs MCCFR cloud, Deep CFR cloud, calibrations cloud, évaluations cloud. Pas applicable aux runs locaux (Windows/laptop).
-
 ## ⚠️ EN DÉBUT DE CHAQUE SESSION
 
 **LIRE EN PREMIER (dans l'ordre) :**

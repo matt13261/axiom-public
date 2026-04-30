@@ -59,10 +59,7 @@ from treys import Deck as _TreysDeck, Evaluator as _Evaluator
 from config.settings import TAILLES_MISE, ALL_IN, TAILLES_MISE_PREFLOP, TAILLES_MISE_POSTFLOP
 from ai.network import encoder_infoset, NB_ACTIONS_MAX
 from abstraction.card_abstraction import AbstractionCartes, AbstractionCartesV2
-from abstraction.info_set import (
-    _normaliser, PALIERS_POT, PALIERS_STACK, PALIERS_STACK_SPIN_RUSH,
-    _format_hist_avec_cap,
-)
+from abstraction.info_set import _normaliser, PALIERS_POT, PALIERS_STACK
 from engine.game_state import EtatJeu, Phase
 from engine.player import Joueur, StatutJoueur
 from solver.depth_limited import (
@@ -360,8 +357,7 @@ class SolveurSousJeu:
         try:
             _abs = self._abs_cartes
             from abstraction.info_set import (
-                _normaliser, PALIERS_POT, PALIERS_STACK_SPIN_RUSH,
-                _discretiser_raise_frac, _format_hist_avec_cap,
+                _normaliser, PALIERS_POT, PALIERS_STACK, _discretiser_raise_frac
             )
         except Exception:
             return 0.0
@@ -394,7 +390,7 @@ class SolveurSousJeu:
             # l'infoset final de la phase → probabilité cumulée cohérente.
             pot_norm   = _normaliser(etat_jeu.pot / gb, PALIERS_POT)
             stacks_str = ','.join(
-                str(_normaliser(j.stack / gb, PALIERS_STACK_SPIN_RUSH))
+                str(_normaliser(j.stack / gb, PALIERS_STACK))
                 for j in etat_jeu.joueurs
             )
             raise_b = _discretiser_raise_frac(
@@ -405,7 +401,7 @@ class SolveurSousJeu:
                    f"|bucket={bucket}"
                    f"|pot={pot_norm}"
                    f"|stacks=({stacks_str})"
-                   f"|hist={_format_hist_avec_cap(hist_str)}"
+                   f"|hist={hist_str}"
                    f"|raise={raise_b}")
 
             # Compter les actions agressives de l'adversaire dans cette phase

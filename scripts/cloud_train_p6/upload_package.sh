@@ -4,7 +4,7 @@
 set -e
 
 ZONE="europe-west4-a"
-VM_NAME="axiom-training-24"
+VM_NAME="axiom-training"
 ZIP_NAME="axiom_cloud_$(date +%Y%m%d_%H%M%S).zip"
 
 echo "=== Création du package cloud ==="

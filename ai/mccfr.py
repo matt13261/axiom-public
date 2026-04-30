@@ -492,10 +492,7 @@ from treys import Deck as _TreysDeckH, Evaluator as _EvalH
 from config.settings import TAILLES_MISE_PREFLOP as _TAILLES_PREFLOP_H, TAILLES_MISE_POSTFLOP as _TAILLES_POSTFLOP_H, ALL_IN as _ALL_IN_H
 from abstraction.card_abstraction import AbstractionCartes as _AbsCartes, AbstractionCartesV2 as _AbsCartesV2
 from abstraction.action_abstraction import AbstractionAction as _AbsAction
-from abstraction.info_set import (
-    _normaliser, PALIERS_POT, PALIERS_STACK, PALIERS_STACK_SPIN_RUSH,
-    _discretiser_raise_frac, _format_hist_avec_cap,
-)
+from abstraction.info_set import _normaliser, PALIERS_POT, PALIERS_STACK, _discretiser_raise_frac
 from engine.actions import Action as _ActionH, TypeAction as _TypeActionH
 
 
@@ -999,10 +996,9 @@ class MCCFRHoldEm:
         gb    = max(etat['grande_blinde'], 1)
 
         # Pot et stacks normalisés par la grande blinde
-        # P7 : stacks bucketisés Spin & Rush (7 niveaux), hist abstrait S/M/L + cap 6
         pot_norm   = _normaliser(etat['pot'] / gb, PALIERS_POT)
         stacks_str = ','.join(
-            str(_normaliser(etat['stacks'][i] / gb, PALIERS_STACK_SPIN_RUSH))
+            str(_normaliser(etat['stacks'][i] / gb, PALIERS_STACK))
             for i in range(3)
         )
 
@@ -1016,7 +1012,7 @@ class MCCFRHoldEm:
             f"|bucket={etat['buckets'][joueur_idx][phase]}"
             f"|pot={pot_norm}"
             f"|stacks=({stacks_str})"
-            f"|hist={_format_hist_avec_cap(etat['hist_phases'][phase])}"
+            f"|hist={etat['hist_phases'][phase]}"
             f"|raise={raise_bucket}"
         )
 

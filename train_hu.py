@@ -54,10 +54,7 @@ from config.settings import (
     NB_WORKERS_MAX,
 )
 from abstraction.card_abstraction import AbstractionCartes as _AbsCartes
-from abstraction.info_set import (
-    _normaliser, PALIERS_POT, PALIERS_STACK, PALIERS_STACK_SPIN_RUSH,
-    _discretiser_raise_frac, _format_hist_avec_cap,
-)
+from abstraction.info_set import _normaliser, PALIERS_POT, PALIERS_STACK, _discretiser_raise_frac
 from engine.actions import Action as _Action, TypeAction as _TypeAction
 from ai.mccfr import NoeudCFR
 from ai.strategy import sauvegarder_blueprint, charger_blueprint
@@ -422,10 +419,9 @@ class MCCFRHeadsUp:
         phase = etat['phase']
         gb    = max(etat['grande_blinde'], 1)
 
-        # P7 : stacks bucketises Spin & Rush (7 niveaux), hist abstrait S/M/L + cap 6
         pot_norm   = _normaliser(etat['pot'] / gb, PALIERS_POT)
         stacks_str = ','.join(
-            str(_normaliser(etat['stacks'][i] / gb, PALIERS_STACK_SPIN_RUSH))
+            str(_normaliser(etat['stacks'][i] / gb, PALIERS_STACK))
             for i in range(2)
         )
 
@@ -439,7 +435,7 @@ class MCCFRHeadsUp:
             f"|bucket={etat['buckets'][joueur_idx][phase]}"
             f"|pot={pot_norm}"
             f"|stacks=({stacks_str})"
-            f"|hist={_format_hist_avec_cap(etat['hist_phases'][phase])}"
+            f"|hist={etat['hist_phases'][phase]}"
             f"|raise={raise_bucket}"
         )
 

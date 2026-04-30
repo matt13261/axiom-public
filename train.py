@@ -685,7 +685,7 @@ def entrainer_deep_cfr(iterations: int, traversees: int) -> None:
 # PHASE 3 — Évaluation (Phase 10 : inclut semi-pros)
 # ---------------------------------------------------------------------------
 
-def evaluer_agent(nb_mains: int = 10000) -> dict:
+def evaluer_agent(nb_mains: int = 1000) -> dict:
     """
     Évalue AXIOM contre les 3 baselines et les 3 bots semi-pro.
     Retourne un dict avec toutes les métriques pour le journal CSV.
