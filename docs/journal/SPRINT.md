@@ -20,18 +20,28 @@ Implémenter et valider l'abstraction cartes V2 (E[HS²] + Potentiel + K-means 3
 - [x] Étape G : ré-entraînement blueprint MCCFR (cloud, 37€) — partiel, voir P7
 - [ ] Étape H : validation 3×6×1000 mains + merge
 
-## Phase P7 — Refonte abstraction hist + stacks (Spin & Rush)
-- [x] P7.1 : analyse code existant ✅
-- [x] P7.2 : spec écrite + amendements (Variante B mapping) ✅
-- [x] P7.3 : 15 tests RED (12 RED + 3 GUARDRAIL) ✅
-- [x] P7.3.bis : tag `pre-p7` posé sur `edefa7f` ✅
-- [x] P7.4 : implémentation 6 fichiers, cap=4, 207/207 GREEN ✅
-- [x] **P7.5 : saturation curve validée (α=0.667, ratio<60 dès 50K)** ✅ 2026-04-29
-- [x] **P7.6 : pilot cloud 500K — ratio 4.53 (mieux que prédit 6.0), 1.80€** ✅ 2026-04-29
-- [x] **P7.7 : pilot cloud 4M (interrompu réseau VM à batch 9/10) — 2.99M infosets, ~24€** ✅ 2026-04-30
-- [ ] **P8 : évaluation blueprint P7 vs baselines + comparaison pré-P7** ← NEXT
-- [ ] P7.7 : pilot 5M cloud (~10€)
-- [ ] P7.8 : validation winrates + merge
+## Phase P7 — Refonte abstraction hist + stacks (Spin & Rush) — **ARCHIVED 2026-04-30**
+- [x] P7.1-7 : implémentation + cloud pilot 4M (24€) — voir CONCLUSION.md
+- [x] P8 : eval baseline (V1 +20.32 vs P7 -24.56 — agent mutilé) ✅
+- [x] P8.diag : Deep CFR confound réfuté ✅
+- [x] **TA1 audit majeur : creer_agent loupait continuations + solveurs** ✅ 2026-04-30
+- [x] **TA1 fix : creer_agent active Pluribus complet** ✅ commit `de0c573`
+- [x] P9 : eval Pluribus complet (V1 +1.22 vs P7 -19.94, écart structurés > 15) ✅ 2026-04-30
+- [x] **REVERT P7 → pre-p7 (TA1 préservé)** ✅ 2026-04-30 commit `56e218d`
+      Tag archive : `p7-complete-archived` (commit `c371e21`)
+
+## Phase P10 — Validation V1 + Pluribus complet (NEXT)
+Objectif : confirmer les chiffres V1 Pluribus complet sur 3 seeds × 10K mains
+(P9 mesuré 1 seed × 5K), focus sur amélioration des baselines difficiles
+(Aléatoire, Raise-Only, LAG).
+- [ ] P10.1 : Eval V1 Pluribus complet 3 seeds × 10K mains (~10h local)
+- [ ] P10.2 : Analyse focus LAG (-3.50 baseline → +7.20 Pluribus, marginal)
+- [ ] P10.3 : Diag pourquoi Aléatoire/Raise-Only restent négatifs malgré
+      continuations (potentiel exploit OFT mismatch ?)
+
+## Parking lot (post-P10 si pertinent)
+- [ ] **P11** : Continuations P7 cloud (~50€) si on reprend P7 abstraction
+- [ ] **P12** : Re-train Deep CFR sous abstraction post-P10
 
 ## Important
 - [ ] Créer compte Google Cloud (guide disponible : docs/journal/done/2026-04-25.md)

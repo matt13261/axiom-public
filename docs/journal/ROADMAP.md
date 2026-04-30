@@ -20,13 +20,30 @@ sur Betclic, Winamax ou équivalent. Winrate cible : +3 à +6 bb/100.
 - [ ] Architecture GitHub hybride
 - [ ] Setup Google Cloud
 
-### Phase 2 — Refonte abstraction P6 (semaines 2-5)
+### Phase 2 — Refonte abstraction P6 (semaines 2-5) ✅
 Passage de 8 à 50 buckets postflop, métrique E[HS²] + clustering.
-- [ ] Spec P6 complète
-- [ ] Implémentation TDD
-- [ ] Recalibration cartes 3-max
-- [ ] Ré-entraînement blueprint cloud (50€ budget)
-- [ ] Validation : winrate vs random > -30, vs reg > +20
+- [x] Spec P6 complète
+- [x] Implémentation TDD
+- [x] Recalibration cartes 3-max
+- [x] Ré-entraînement blueprint cloud (~30€ cumul P6+P7)
+- [x] Validation préliminaire (V2 active)
+
+### Phase P7 — Refonte hist + stacks Spin & Rush — **ARCHIVED 2026-04-30**
+Tentative de réduire cardinalité hist/stacks (cap=4 + Variante B + paliers
+Spin & Rush 7 niveaux). **Reverté** car écart V1 vs P7 sur bots structurés
+> 15 bb/100 (TAG +25.75, LAG +19.77, Régulier +20.27).
+
+**Le vrai gain** de P7 a été **TA1** : audit architectural révélant que
+`creer_agent` n'activait pas continuations + solveurs. Fix préservé
+post-revert, +21.54 bb/100 moyen sur V1.
+
+Détails : `docs/investigations/P7-hist-stacks-abstraction/CONCLUSION.md`
+Tag archive : `p7-complete-archived` pour reprendre P7 plus tard si besoin.
+
+### Phase P10 — Validation V1 + Pluribus complet (NEXT)
+- [ ] Eval V1 Pluribus complet 3 seeds × 10K mains
+- [ ] Diag baselines difficiles (Aléatoire, Raise-Only, LAG)
+- [ ] Décision suite : continuer optimisations sur V1 ou redémarrer P7
 
 ### Phase 3 — Action abstraction (semaines 5-7)
 Passage de 7 à 15 actions abstraites.
