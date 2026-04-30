@@ -1107,6 +1107,15 @@ class AgentAXIOM:
 # FONCTION DE CRÉATION RAPIDE
 # =============================================================================
 
+class _NoOpMixer:
+    """Mixer identité — désactive OFT proprement (P10.A audit OFT).
+
+    Retourne la distribution blueprint inchangée, sans appel OpponentTracker.
+    """
+    def ajuster(self, distribution_blueprint, seat_index, game_type):
+        return distribution_blueprint.copy()
+
+
 def creer_agent(chemin_blueprint    : str  = None,
                 chemin_blueprint_hu : str  = None,
                 chemin_strategie    : str  = None,
@@ -1115,7 +1124,8 @@ def creer_agent(chemin_blueprint    : str  = None,
                 continuations       : bool = True,
                 solveur_realtime    : bool = True,
                 solveur_iterations  : int  = 50,
-                solveur_temps_max   : float = 0.3) -> AgentAXIOM:
+                solveur_temps_max   : float = 0.3,
+                enable_oft          : bool = True) -> AgentAXIOM:
     """
     Crée et initialise un AgentAXIOM en chargeant toutes les sources disponibles.
     Les fichiers manquants sont ignorés sans lever d'exception.
@@ -1213,6 +1223,15 @@ def creer_agent(chemin_blueprint    : str  = None,
         except Exception as e:
             if verbose:
                 print(f"  ⚠️  Solveur real-time non activé : {e}")
+
+    # ── P10.A : flag enable_oft ───────────────────────────────────────────
+    # Si OFT désactivé, remplace le mixer par un no-op qui retourne le
+    # blueprint inchangé. Le tracker reste en place (pas d'effet de bord
+    # sur les enregistrements d'actions adverses).
+    if not enable_oft:
+        agent.mixer = _NoOpMixer()
+        if verbose:
+            print(f"  🔕 OFT désactivé (mixer = no-op)")
 
     if verbose:
         print(f"  ✅ Agent prêt : {agent}")

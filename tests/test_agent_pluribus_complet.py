@@ -32,3 +32,17 @@ def test_creer_agent_charge_continuations_et_solveur():
     assert agent._solveur_subgame is not None, (
         "creer_agent doit activer SolveurSousJeu (TURN/RIVER)"
     )
+
+
+def test_creer_agent_avec_oft_desactive():
+    """creer_agent(enable_oft=False) doit produire un mixer identité (no-op).
+
+    Régression P10.A : permet de mesurer le delta winrate apporté par OFT.
+    """
+    import numpy as np
+    from ai.agent import creer_agent
+
+    agent = creer_agent(enable_oft=False, verbose=False)
+    dist = np.array([0.1, 0.2, 0.3, 0.05, 0.05, 0.05, 0.05, 0.1, 0.1])
+    ajustee = agent.mixer.ajuster(dist, 0, 'NLHE_3MAX')
+    np.testing.assert_array_almost_equal(dist, ajustee)
