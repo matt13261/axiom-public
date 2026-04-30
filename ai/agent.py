@@ -1107,14 +1107,28 @@ class AgentAXIOM:
 # FONCTION DE CRÉATION RAPIDE
 # =============================================================================
 
-def creer_agent(chemin_blueprint   : str  = None,
-                chemin_blueprint_hu: str  = None,
-                chemin_strategie   : str  = None,
-                mode_deterministe  : bool = False,
-                verbose            : bool = True) -> AgentAXIOM:
+def creer_agent(chemin_blueprint    : str  = None,
+                chemin_blueprint_hu : str  = None,
+                chemin_strategie    : str  = None,
+                mode_deterministe   : bool = False,
+                verbose             : bool = True,
+                continuations       : bool = True,
+                solveur_realtime    : bool = True,
+                solveur_iterations  : int  = 50,
+                solveur_temps_max   : float = 0.3) -> AgentAXIOM:
     """
     Crée et initialise un AgentAXIOM en chargeant toutes les sources disponibles.
     Les fichiers manquants sont ignorés sans lever d'exception.
+
+    Pluribus complet (TA1 fix 2026-04-30) :
+      - continuations=True       : charge blueprint_*_call/fold/raise (k=4)
+      - solveur_realtime=True    : active SolveurProfondeurLimitee (FLOP)
+                                    et SolveurSousJeu (TURN/RIVER)
+      - solveur_iterations=50    : config "rapide" pour éval batch
+                                    (mode prod screen/jouer.py utilise 50 + temps_max=3s)
+      - solveur_temps_max=0.3s   : budget par décision (vs 3s en prod)
+                                    → 60K mains × ~10 décisions × 0.3s = ~50h max
+                                    en pratique solveurs ne se déclenchent que postflop
     """
     import os
 
@@ -1138,6 +1152,18 @@ def creer_agent(chemin_blueprint   : str  = None,
         except Exception as e:
             if verbose:
                 print(f"  ⚠️  Blueprint 3J non chargé : {e}")
+
+        # ── TA1 fix : continuation strategies Pluribus k=4 ────────────────
+        # Tente de charger les variantes biaisées blueprint_*_call/fold/raise
+        # à partir du même nom de base que chemin_bp. Silencieux si absent.
+        if continuations:
+            try:
+                dossier  = os.path.dirname(chemin_bp) or '.'
+                base_nom = os.path.basename(chemin_bp).replace('.pkl', '')
+                agent.charger_blueprints_continuations(dossier=dossier, base_nom=base_nom)
+            except Exception as e:
+                if verbose:
+                    print(f"  ⚠️  Continuations non chargées : {e}")
     elif verbose:
         print(f"  ℹ️  Blueprint 3J introuvable ({chemin_bp}) — ignoré")
 
@@ -1170,6 +1196,23 @@ def creer_agent(chemin_blueprint   : str  = None,
                 print(f"  ⚠️  Réseaux valeur non chargés : {e}")
     elif verbose:
         print(f"  ℹ️  Réseaux valeur introuvables — oracle = équité brute")
+
+    # ── TA1 fix : real-time solveur (FLOP + TURN/RIVER) ───────────────────
+    # Mode "rapide" pour les évals batch (50 iter, 0.3s budget).
+    # screen/jouer.py reste libre d'appeler activer_solveur(...) avec params
+    # plus larges (e.g. temps_max=3s) pour le mode prod.
+    if solveur_realtime:
+        try:
+            agent.activer_solveur(
+                profondeur    = 2,
+                nb_iterations = solveur_iterations,
+                nb_simul      = 6,
+                nb_scenarios  = 15,
+                temps_max     = solveur_temps_max,
+            )
+        except Exception as e:
+            if verbose:
+                print(f"  ⚠️  Solveur real-time non activé : {e}")
 
     if verbose:
         print(f"  ✅ Agent prêt : {agent}")
